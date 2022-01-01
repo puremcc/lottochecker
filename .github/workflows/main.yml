@@ -1,0 +1,68 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v1
+
+      - name: Build backend (dev)
+        run: | 
+          echo "Building the backend . . ."
+          cd backend || exit 1
+          sam build
+          cd - || exit 1
+
+      - name: Build frontend (dev)
+        run: |
+          echo "Building the frontend . . ."
+          cd frontend || exit 1
+          vue-cli-service build --mode development
+          cd - || exit 1
+    
+      - name: Deploy backend (dev)
+        run: |
+          echo "Deploying the backend . . ."
+          cd backend || exit 1
+          sam deploy --config-env development \
+              --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }}"
+          cd - || exit 1
+              
+      - name: Deploy frontend (dev)
+        run: |
+          echo "Deploying the frontend . . ."
+          cd frontend || exit 1
+          aws s3 sync \
+              --delete dist/ "s3://${{ secrets.BUCKET_NAME }}" \
+          aws cloudfront create-invalidation \
+              --distribution-id "${{ secrets.DISTRIBUTION_ID }}" \
+              --paths "/*" \
+          cd - || exit 1
