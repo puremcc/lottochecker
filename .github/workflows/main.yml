@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -20,31 +20,31 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Setup AWS SAM CLI
-        uses: aws-actions/setup-sam@v1
-
       - name: Build backend (dev)
-        run: | 
+        run: |
           echo "Building the backend . . ."
           cd backend || exit 1
           sam build
-          cd - || exit 1
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend || exit 1
+          npm install
+          # npm install -g @vue/cli-service
 
       - name: Build frontend (dev)
         run: |
           echo "Building the frontend . . ."
           cd frontend || exit 1
-          vue-cli-service build --mode development
-          cd - || exit 1
-    
+          vue-cli-service build
+
       - name: Deploy backend (dev)
         run: |
           echo "Deploying the backend . . ."
           cd backend || exit 1
           sam deploy --config-env development \
               --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }}"
-          cd - || exit 1
-              
+
       - name: Deploy frontend (dev)
         run: |
           echo "Deploying the frontend . . ."
@@ -54,4 +54,3 @@ jobs:
           aws cloudfront create-invalidation \
               --distribution-id "${{ secrets.DISTRIBUTION_ID }}" \
               --paths "/*" \
-          cd - || exit 1
