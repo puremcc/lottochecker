@@ -29,8 +29,8 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd frontend || exit 1
-          npm install
-          # npm install -g @vue/cli-service
+          npm install -g
+          npm install -g @vue/cli-service
 
       - name: Build frontend (dev)
         run: |
