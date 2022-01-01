@@ -1,0 +1,56 @@
+{
+  "name": "lotto-checker-vue",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build:dev:frontend": "vue-cli-service build --mode development",
+    "build:dev:backend": "source .env.development && ./build.sh development backend-only",
+    "build:prod:frontend": "vue-cli-service build",
+    "deploy:dev": "source .env.development && ./deploy.sh development",
+    "deploy:prod": "source .env.production && ./deploy.sh production",
+    "build-deploy:dev": "npm run build:dev:backend && npm run build:dev:frontend && npm run deploy:dev",
+    "lint": "vue-cli-service lint"
+  },
+  "dependencies": {
+    "@firebase/app": "^0.6.14",
+    "@firebase/firestore": "^2.1.4",
+    "@vue/cli": "^4.5.15",
+    "axios": "^0.21.4",
+    "core-js": "^3.4.3",
+    "firebase": "^8.2.5",
+    "luxon": "^1.26.0",
+    "npm": "^8.3.0",
+    "vue": "^2.6.10",
+    "vuetify": "^2.4.3",
+    "vuex": "^3.6.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.12.10",
+    "@babel/eslint-parser": "^7.12.1",
+    "@vue/cli-plugin-babel": "^5.0.0-alpha.0",
+    "@vue/cli-plugin-eslint": "^5.0.0-rc.1",
+    "@vue/cli-service": "^5.0.0-rc.1",
+    "eslint": "^7.15.0",
+    "eslint-plugin-vue": "^7.2.0",
+    "vue-template-compiler": "^2.6.10"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "node": true
+    },
+    "extends": [
+      "plugin:vue/essential",
+      "eslint:recommended"
+    ],
+    "rules": {},
+    "parserOptions": {
+      "parser": "@babel/eslint-parser"
+    }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions"
+  ]
+}
