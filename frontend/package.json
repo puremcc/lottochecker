@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "serve": "vue-cli-service serve",
+    "serve": "npx vue-cli-service serve",
     "build:dev:frontend": "npx vue-cli-service build --mode development",
     "build:dev:backend": "source .env.development && ./build.sh development backend-only",
     "build:frontend": "npx vue-cli-service build",
