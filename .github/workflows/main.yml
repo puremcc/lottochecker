@@ -1,4 +1,4 @@
-name: CI
+name: LottoChecker CI
 
 on:
   push:
@@ -9,6 +9,33 @@ on:
 
 jobs:
   build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build backend (dev)
+        working-directory: backend
+        run: sam build
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build:frontend
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: artifact-frontend
+          path: dist/
+  
+  deploy-dev:
+    name: Deploy to Dev
+    needs: build
+    environment: dev
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -20,25 +47,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Build backend (dev)
-        run: |
-          echo "Building the backend . . ."
-          cd backend || exit 1
-          sam build
-
-      - name: Install frontend dependencies
-        run: |
-          cd frontend || exit 1
-          npm install
-
-      - name: Build frontend (dev)
-        run: |
-          echo "Building the frontend . . ."
-          cd frontend || exit 1
-          npm run build:frontend
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
       - name: Deploy backend (dev)
         run: |
           echo "Deploying the backend . . ."
