@@ -29,15 +29,16 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd frontend || exit 1
-          npm install -g
-          npm install -g @vue/cli-service
+          npm install
 
       - name: Build frontend (dev)
         run: |
           echo "Building the frontend . . ."
           cd frontend || exit 1
-          vue-cli-service build
-
+          npm run build:frontend
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy backend (dev)
         run: |
           echo "Deploying the backend . . ."
