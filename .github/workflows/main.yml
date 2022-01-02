@@ -30,12 +30,15 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: artifact-frontend
-          path: dist/
+          path: frontend/dist/
+          if-no-files-found: error
   
   deploy-dev:
     name: Deploy to Dev
     needs: build
     environment: dev
+    env:
+      ENV_PREFIX: dev
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -48,18 +51,22 @@ jobs:
           aws-region: us-east-1
 
       - name: Deploy backend (dev)
+        working-directory: backend
         run: |
-          echo "Deploying the backend . . ."
-          cd backend || exit 1
           sam deploy --config-env development \
+              --stack-name ${{ secrets.DEPLOY_STACK_NAME }} \
+              --s3-bucket ${{ secrets.DEPLOY_ARTIFACT_BUCKET }} \
+              --s3-prefix $ENV_PREFIX \
+              --region ${{ secrets.DEPLOY_REGION }} \
+              --no-confirm-changeset \
+              --capabilities CAPABILITY_IAM \
               --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }}"
 
       - name: Deploy frontend (dev)
+        working-directory: frontend
         run: |
-          echo "Deploying the frontend . . ."
-          cd frontend || exit 1
           aws s3 sync \
-              --delete dist/ "s3://${{ secrets.BUCKET_NAME }}" \
+              --delete dist/ "s3://${{ secrets.BUCKET_NAME }}"
           aws cloudfront create-invalidation \
               --distribution-id "${{ secrets.DISTRIBUTION_ID }}" \
               --paths "/*" \
