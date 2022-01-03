@@ -4,7 +4,6 @@ COMPONENT=$2
 
 [ $# -eq 0 ] && {
     echo "Usage: $0 stage [component]"
-    echo "  stage       - Deployment stage: development | production"
     echo "  component   - Optional: frontend-only | backend-only"
     exit 1
 }
