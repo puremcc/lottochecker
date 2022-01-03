@@ -58,6 +58,7 @@ jobs:
               --s3-bucket ${{ secrets.DEPLOY_ARTIFACT_BUCKET }} \
               --s3-prefix $ENV_PREFIX \
               --region ${{ secrets.DEPLOY_REGION }} \
+              --no-fail-on-empty-changeset \
               --no-confirm-changeset \
               --capabilities CAPABILITY_IAM \
               --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }}"
