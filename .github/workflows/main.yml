@@ -14,6 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      #
+      # Build and package backend
+      #
       - name: Build backend
         working-directory: backend
         run: sam build
@@ -39,19 +42,23 @@ jobs:
           path: backend/template.yaml
           if-no-files-found: error
 
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm install
+      #
+      # Build and package frontend
+      #
+      # - name: Install frontend dependencies
+      #   working-directory: frontend
+      #   run: npm install
 
-      - name: Build frontend
-        working-directory: frontend
-        run: npm run build:frontend
+      # - name: Build frontend
+      #   working-directory: frontend
+      #   run: npm run build:frontend
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v2
         with:
           name: frontend-artifact
-          path: frontend/dist/
+          # path: frontend/dist/
+          path: frontend/
           if-no-files-found: error
   
   deploy-dev:
@@ -88,7 +95,16 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: frontend-artifact
-          path: dist/
+          # path: dist/
+          path: frontend
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build frontend for Dev
+        working-directory: frontend
+        run: npm run build:frontend -- --dest ../dist
 
       - name: Deploy frontend
         run: |
