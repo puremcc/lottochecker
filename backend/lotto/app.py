@@ -29,7 +29,7 @@ def get_winning_numbers() -> str:
     return {
         "statusCode": 200,
         "headers": {
-            "Access-Control-Allow-Origin": os.environ['APP_HOST_URL'],
+            "Access-Control-Allow-Origin": '{},{}'.format(os.environ['APP_HOST_URL'], 'http://localhost:8080'),
             "Access-Control-Allow-Methods": "OPTIONS,GET"
         },
         "body": json.dumps(winning_numbers)
@@ -43,7 +43,3 @@ def lambda_handler(event, context):
         # logging.exception(sys.exc_info()[0])
         raise Exception('Unable to retrieve winning numbers.\n {} \n {}'.format(
             str(sys.exc_info()[0]), str(sys.exc_info()[1])))
-        # return {
-        #     "statusCode": 502,
-        #     "body": f"Unable to retrieve winning numbers.\n {str(sys.exc_info()[0])} \n {str(sys.exc_info()[1])}"
-        # }
