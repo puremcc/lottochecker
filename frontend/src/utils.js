@@ -19,6 +19,7 @@ export default {
   },
 
   async getWinningNumbers() {
+    console.log('API_URL:', process.env.VUE_APP_API_URL)
     const url = process.env.VUE_APP_API_URL;
 
     let winningNumbers = (await axios.get(url)).data;
