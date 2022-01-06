@@ -104,7 +104,7 @@ jobs:
 
       - name: Build frontend for Dev
         working-directory: frontend
-        run: npm run build:frontend -- --dest ../dist
+        run: npm run build:frontend -- --dest ../dist --modern
 
       - name: Deploy frontend
         run: |
