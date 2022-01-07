@@ -13,6 +13,18 @@ Globals:
     Timeout: 3
 
 Resources:
+
+  RestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt CognitoUserPool.Arn
+
   LottoFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -26,8 +38,30 @@ Resources:
         Lotto:
           Type: Api
           Properties:
+            RestApiId: !Ref RestApi
             Path: /lotto/WinningNumbers/{state}/{game}
             Method: GET
+
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: LottoCheckerUserPool
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      UsernameAttributes:
+        - email
+      Schema:
+        - AttributeDataType: String
+          Name: email
+          Required: false
+  
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      ClientName: LottoCheckerFrontend
+      GenerateSecret: false
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
@@ -35,7 +69,7 @@ Outputs:
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   LottoApi:
     Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/lotto/WinningNumbers/{state}/{game}"
+    Value: !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/lotto/WinningNumbers/{state}/{game}"
   LottoFunction:
     Description: "Hello World Lambda Function ARN"
     Value: !GetAtt LottoFunction.Arn
