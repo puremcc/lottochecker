@@ -1,0 +1,123 @@
+name: LottoChecker CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      #
+      # Build and package backend
+      #
+      - name: Build backend
+        working-directory: backend
+        run: sam build
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Package backend artifact
+        working-directory: backend
+        run: |
+          sam package \
+              --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
+              > template.yaml       
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: backend-artifact
+          path: backend/template.yaml
+          if-no-files-found: error
+
+      #
+      # Build and package frontend
+      #
+      # - name: Install frontend dependencies
+      #   working-directory: frontend
+      #   run: npm install
+
+      # - name: Build frontend
+      #   working-directory: frontend
+      #   run: npm run build:frontend
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: frontend-artifact
+          # path: frontend/dist/
+          path: frontend/
+          if-no-files-found: error
+  
+  deploy-dev:
+    name: Deploy to Dev
+    needs: build
+    environment: dev
+    env:
+      ENV_NAME: dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Download backend artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: backend-artifact
+
+      - name: Deploy backend
+        run: |
+          sam deploy --config-env development \
+              --stack-name "lottochecker-$ENV_NAME" \
+              --s3-bucket ${{ secrets.DEPLOY_ARTIFACT_BUCKET }} \
+              --no-fail-on-empty-changeset \
+              --no-confirm-changeset \
+              --capabilities CAPABILITY_IAM \
+              --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }}"
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: frontend-artifact
+          # path: dist/
+          path: frontend
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build frontend for Dev
+        env:
+          VUE_APP_API_URL: ${{ secrets.VUE_APP_API_URL }}
+          VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
+          VUE_APP_FIREBASE_AUTH_DOMAIN: ${{ secrets.VUE_APP_FIREBASE_AUTH_DOMAIN }}
+          VUE_APP_FIREBASE_PROJECT_ID: ${{ secrets.VUE_APP_FIREBASE_PROJECT_ID }}
+          VUE_APP_FIREBASE_STORAGE_BUCKET: ${{ secrets.VUE_APP_FIREBASE_STORAGE_BUCKET }}
+          VUE_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VUE_APP_FIREBASE_MESSAGING_SENDER_ID }}
+          VUE_APP_FIREBASE_APP_ID: ${{ secrets.VUE_APP_FIREBASE_APP_ID }}
+        working-directory: frontend
+        run: npm run build:frontend -- --dest ../dist --modern
+
+      - name: Deploy frontend
+        run: |
+          aws s3 sync \
+              --delete dist/ "s3://${{ secrets.BUCKET_NAME }}"
+          aws cloudfront create-invalidation \
+              --distribution-id "${{ secrets.DISTRIBUTION_ID }}" \
+              --paths "/*" \

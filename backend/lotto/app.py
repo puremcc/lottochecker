@@ -4,12 +4,28 @@ import json
 import requests
 import os
 
-url_base = "www.txlottery.org"
-url_path = "http://www.txlottery.org/export/sites/lottery/Games/Lotto_Texas/Winning_Numbers/lottotexas.csv"
+LOTTO_URL = "http://www.txlottery.org/export/sites/lottery/Games/Lotto_Texas/Winning_Numbers/lottotexas.csv"
+
+
+def lambda_handler(event, context):
+    try:
+        winning_numbers = get_winning_numbers()
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": os.environ['APP_HOST_URL'],
+                "Access-Control-Allow-Methods": "OPTIONS,GET"
+            },
+            "body": json.dumps(winning_numbers)
+        }
+    except:
+        # logging.exception(sys.exc_info()[0])
+        raise Exception('Unable to retrieve winning numbers.\n {} \n {}'.format(
+            str(sys.exc_info()[0]), str(sys.exc_info()[1])))
 
 
 def get_winning_numbers() -> str:
-    response = requests.get(url_path)
+    response = requests.get(LOTTO_URL)
 
     winning_numbers = []
     for row in response.text.split("\r\n")[-2:0:-1]:
@@ -26,24 +42,4 @@ def get_winning_numbers() -> str:
         else:
             break
 
-    return {
-        "statusCode": 200,
-        "headers": {
-            "Access-Control-Allow-Origin": os.environ['APP_HOST_URL'],
-            "Access-Control-Allow-Methods": "OPTIONS,GET"
-        },
-        "body": json.dumps(winning_numbers)
-    }
-
-
-def lambda_handler(event, context):
-    try:
-        return get_winning_numbers()
-    except:
-        # logging.exception(sys.exc_info()[0])
-        raise Exception('Unable to retrieve winning numbers.\n {} \n {}'.format(
-            str(sys.exc_info()[0]), str(sys.exc_info()[1])))
-        # return {
-        #     "statusCode": 502,
-        #     "body": f"Unable to retrieve winning numbers.\n {str(sys.exc_info()[0])} \n {str(sys.exc_info()[1])}"
-        # }
+    return winning_numbers

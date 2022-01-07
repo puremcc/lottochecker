@@ -1,11 +1,9 @@
 #!/bin/bash
 
-STAGE=$1
 COMPONENT=$2
 
 [ $# -eq 0 ] && {
     echo "Usage: $0 stage [component]"
-    echo "  stage       - Deployment stage: development | production"
     echo "  component   - Optional: frontend-only | backend-only"
     exit 1
 }
@@ -14,7 +12,7 @@ COMPONENT=$2
 if [ "$COMPONENT" != 'frontend-only' ]; then
     echo
     echo "Building and packaging the backend . . ."
-    echo "Using AWS CLI profile: $AWS_PROFILE"
+    if [ -v AWS_PROFILE ]; then echo "Using AWS CLI profile: $AWS_PROFILE"; fi
     cd backend || exit 1
     sam build
     sam package --s3-bucket "$SAM_BUCKET_NAME"
@@ -26,7 +24,7 @@ if [ "$COMPONENT" != 'backend-only' ]; then
     echo
     echo "Building the frontend . . ."
     cd frontend || exit 1
-    vue-cli-service build --mode "$STAGE"
+    npx vue-cli-service build
     cd - || exit 1
 fi
 
