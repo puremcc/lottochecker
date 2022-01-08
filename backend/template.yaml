@@ -64,8 +64,10 @@ Resources:
       GenerateSecret: false
       CallbackURLs:  
         - !Ref AppHostUrl
+        - http://localhost:8080
       LogoutURLs:
         - !Ref AppHostUrl
+        - http://localhost:8080
 
   UserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
