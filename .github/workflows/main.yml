@@ -58,6 +58,9 @@ jobs:
       #   working-directory: frontend
       #   run: npm run build:frontend
 
+      - name: Lint frontend
+        run: npm run lint 
+
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v2
         with:

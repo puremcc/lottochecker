@@ -10,7 +10,7 @@
     "deploy:dev": "source .env.development && ./deploy.sh development",
     "deploy:prod": "source .env.production && ./deploy.sh production",
     "build-deploy:dev": "npm run build:dev:backend && npm run build:dev:frontend && npm run deploy:dev",
-    "lint": "vue-cli-service lint"
+    "lint": "npx vue-cli-service lint"
   },
   "dependencies": {
     "@firebase/app": "^0.6.14",
