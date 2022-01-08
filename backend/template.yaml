@@ -62,6 +62,10 @@ Resources:
       UserPoolId: !Ref UserPool
       ClientName: LottoCheckerFrontend
       GenerateSecret: false
+      CallbackURLs:  
+        - !Ref AppHostUrl
+      LogoutURLs:
+        - !Ref AppHostUrl
 
   UserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
@@ -84,8 +88,7 @@ Outputs:
   UserPoolWebClientId:
     Value: !Ref UserPoolWebClient
   UserPoolAuthDomain:
-    Value: !Ref UserPoolDomain
-  
+    Value: !Sub "${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
   LottoFunction:
     Description: "Lotto Lambda Function ARN"
     Value: !GetAtt LottoFunction.Arn

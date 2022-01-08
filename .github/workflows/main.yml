@@ -54,19 +54,24 @@ jobs:
       #   working-directory: frontend
       #   run: npm install
 
+      - name: Lint frontend
+        working-directory: frontend
+        run: | 
+          npm install @vue/cli-service
+          npm run lint 
+
       # - name: Build frontend
       #   working-directory: frontend
       #   run: npm run build:frontend
-
-      - name: Lint frontend
-        run: npm run lint 
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v2
         with:
           name: frontend-artifact
           # path: frontend/dist/
-          path: frontend/
+          path: |
+            frontend/
+            !frontend/node_modules/
           if-no-files-found: error
   
   deploy-dev:
