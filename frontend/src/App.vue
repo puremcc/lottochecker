@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-app-bar app><h2>Lotto Checker</h2></v-app-bar>
-    <v-main>
+    <v-main v-if="isLoggedIn">
       <v-container>
         <base-error :error="error" />
         <v-row>
@@ -72,10 +72,10 @@ export default {
     };
   },
   computed: {
-    ...mapGetters(["winningNumbers"]),
+    ...mapGetters(["winningNumbers", "isLoggedIn"]),
   },
   methods: {
-    ...mapActions(["loadWinningNumbers", "loadTickets"]),
+    ...mapActions(["loadAuthState", "loadWinningNumbers", "loadTickets"]),
     async onNewTicketSaved() {
       this.showEnterNewTicket = false;
     },

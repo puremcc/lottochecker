@@ -3,6 +3,9 @@ import Vuex from "vuex";
 import utils from "./utils";
 import { Ticket } from "./models/firebase";
 
+import Amplify, { Auth } from "aws-amplify";
+import awsconfig from "./aws-exports";
+
 Vue.use(Vuex);
 
 const ticketModel = new Ticket();
@@ -10,12 +13,18 @@ const ticketModel = new Ticket();
 export const store = new Vuex.Store({
   state() {
     return {
+      username: null,
+      accessToken: null,
       winningNumbers: JSON.parse(localStorage.getItem("winningNumbers")) || [],
       lastFetched: new Date(+localStorage.getItem("lastFetched")) || null,
       tickets: [],
     };
   },
   mutations: {
+    setUser(state, payload) {
+      state.username = payload.username;
+      state.accessToken = payload.accessToken;
+    },
     setWinningNumbers(state, payload) {
       state.winningNumbers = payload;
       localStorage.setItem("winningNumbers", JSON.stringify(payload));
@@ -29,6 +38,34 @@ export const store = new Vuex.Store({
     },
   },
   actions: {
+    /* Auth */
+    async loadAuthState(context) {
+      try {
+        const user = await Auth.currentAuthenticatedUser();
+        context.commit("setUser", {
+          username: user.username,
+          accessToken: user.signInUserSession.accessToken.jwtToken,
+        });
+      } catch (error) {
+        return;
+      }
+    },
+    async signIn() {
+      try {
+        await Auth.federatedSignIn();
+      } catch (error) {
+        console.log("Error signing in", error);
+        throw error;
+      }
+    },
+    async signOut() {
+      try {
+        await Auth.signOut();
+      } catch (error) {
+        console.log("Error signing out: ", error);
+        throw error;
+      }
+    },
     async loadWinningNumbers(context) {
       console.log("loadWinningNumbers...");
       console.log(
@@ -47,6 +84,15 @@ export const store = new Vuex.Store({
     },
   },
   getters: {
+    username(state) {
+      return state.username
+    },
+    isLoggedIn(state) {
+      return !!state.accessToken
+    },
+    accessToken(state) {
+      return state.accessToken
+    },
     winningNumbers(state) {
       return state.winningNumbers;
     },
@@ -65,9 +111,11 @@ export const store = new Vuex.Store({
       return state.tickets.map((ticket) => {
         ticket.dates = `${ticket.startDate} – ${ticket.endDate}`;
         ticket.results = utils.getResults(ticket, state.winningNumbers);
-        ticket.playsRemaining = ticket.results.filter(result => !result.winningNumbers).length;
+        ticket.playsRemaining = ticket.results.filter(
+          (result) => !result.winningNumbers
+        ).length;
         // ticket.picks[0].numbers = ticket.picks[0].numbers.join(", ");
-        ticket.picks.map(pick => {
+        ticket.picks.map((pick) => {
           pick.numbers = pick.numbers.join(", ");
           return pick;
         });
