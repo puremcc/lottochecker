@@ -1,31 +1,36 @@
 <template>
   <span>
-    <b-nav-item-dropdown v-if="isLoggedIn" :html="userHtml" right>
-      <b-dropdown-item href="#" @click="signOut">Sign out</b-dropdown-item>
-    </b-nav-item-dropdown>
+    <v-menu v-if="isLoggedIn" left bottom>
+      <template v-slot:activator="{ on, attrs }">
+        <v-btn icon v-bind="attrs" v-on="on">
+          <v-icon>mdi-account</v-icon>
+        </v-btn>
+      </template>
 
-    <b-nav-item v-else :html="userHtml" right>
-      <b-button @click="signIn" variant="primary">Sign in</b-button>
-    </b-nav-item>
+      <v-list>
+        <v-list-item @click="signOut">Sign out</v-list-item>
+      </v-list>
+    </v-menu>
+    <v-btn v-else @click="signIn">Sign in</v-btn>
   </span>
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex'
+import { mapActions, mapGetters } from "vuex";
 
 export default {
   computed: {
-    ...mapGetters(['username', 'isLoggedIn']),
+    ...mapGetters(["username", "isLoggedIn"]),
     userHtml() {
-      return `<i id="user-icon" class="bi bi-person-fill mr-2"></i><span id="username">${
-        this.username ?? ''
-      }</span>`
+      return `<v-btn icon>mdi-account</v-btn><span id="username">${
+        this.username ?? ""
+      }</span>`;
     },
   },
   methods: {
-    ...mapActions(['signIn', 'signOut']),
+    ...mapActions(["signIn", "signOut"]),
   },
-}
+};
 </script>
 <style>
 #user-icon {
