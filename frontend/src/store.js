@@ -7,6 +7,7 @@ import Amplify, { Auth } from "aws-amplify";
 import awsconfig from "./aws-exports";
 
 Vue.use(Vuex);
+Amplify.configure(awsconfig)
 
 const ticketModel = new Ticket();
 

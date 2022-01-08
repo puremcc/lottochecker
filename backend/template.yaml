@@ -23,7 +23,7 @@ Resources:
         DefaultAuthorizer: CognitoAuthorizer
         Authorizers:
           CognitoAuthorizer:
-            UserPoolArn: !GetAtt CognitoUserPool.Arn
+            UserPoolArn: !GetAtt UserPool.Arn
 
   LottoFunction:
     Type: AWS::Serverless::Function
@@ -42,7 +42,7 @@ Resources:
             Path: /lotto/WinningNumbers/{state}/{game}
             Method: GET
 
-  CognitoUserPool:
+  UserPool:
     Type: AWS::Cognito::UserPool
     Properties:
       UserPoolName: LottoCheckerUserPool
@@ -56,12 +56,19 @@ Resources:
           Name: email
           Required: false
   
-  CognitoUserPoolClient:
+  UserPoolWebClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
-      UserPoolId: !Ref CognitoUserPool
+      UserPoolId: !Ref UserPool
       ClientName: LottoCheckerFrontend
       GenerateSecret: false
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref AWS::StackName
+      UserPoolId: !Ref UserPool
+
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
@@ -70,6 +77,15 @@ Outputs:
   LottoApi:
     Description: "API Gateway endpoint URL for Prod stage for Lotto function"
     Value: !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/lotto/WinningNumbers/{state}/{game}"
+  CognitoRegion:
+    Value: !Ref AWS::Region
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolWebClientId:
+    Value: !Ref UserPoolWebClient
+  UserPoolAuthDomain:
+    Value: !Ref UserPoolDomain
+  
   LottoFunction:
     Description: "Lotto Lambda Function ARN"
     Value: !GetAtt LottoFunction.Arn
