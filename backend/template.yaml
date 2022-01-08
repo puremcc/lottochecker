@@ -18,7 +18,7 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: Prod
-      Cors: !Sub "'${AppHostUrl}'"
+      Cors: !Sub "'*'"
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
         Authorizers:

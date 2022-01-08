@@ -12,10 +12,10 @@ def lambda_handler(event, context):
         winning_numbers = get_winning_numbers()
         return {
             "statusCode": 200,
-            "headers": {
-                "Access-Control-Allow-Origin": os.environ['APP_HOST_URL'],
-                "Access-Control-Allow-Methods": "OPTIONS,GET"
-            },
+            # "headers": {
+            #     "Access-Control-Allow-Origin": os.environ['APP_HOST_URL'],
+            #     "Access-Control-Allow-Methods": "OPTIONS,GET"
+            # },
             "body": json.dumps(winning_numbers)
         }
     except:
