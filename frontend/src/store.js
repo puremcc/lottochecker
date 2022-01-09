@@ -76,7 +76,7 @@ export const store = new Vuex.Store({
       if (!context.getters.shouldUpdate) {
         return;
       }
-      const winningNumbers = await utils.getWinningNumbers();
+      const winningNumbers = await utils.getWinningNumbers(context.state.accessToken);
       context.commit("setWinningNumbers", winningNumbers);
       context.commit("setLastFetched");
     },

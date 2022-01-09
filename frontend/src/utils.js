@@ -18,11 +18,16 @@ export default {
     return picks;
   },
 
-  async getWinningNumbers() {
-    console.log('API_URL:', process.env.VUE_APP_API_URL)
+  async getWinningNumbers(accessToken) {
+    console.log("API_URL:", process.env.VUE_APP_API_URL);
     const url = process.env.VUE_APP_API_URL;
+    const config = {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    };
 
-    let winningNumbers = (await axios.get(url)).data;
+    let winningNumbers = (await axios.get(url, config)).data;
     winningNumbers.forEach((drawing) => {
       drawing.drawingDate = DateTime.fromFormat(
         drawing.drawingDate,
@@ -75,8 +80,8 @@ export default {
     var validDays = [1, 3, 6]; // Drawings are on Mon, Wed, Sat.
     if (drawingDate < new Date("2021-08-23"))
       // Prior to 2021-08-23 drawings were only Wed, Sat.
-      validDays = [3, 6]
-    return validDays.includes(drawingDate.weekday); 
+      validDays = [3, 6];
+    return validDays.includes(drawingDate.weekday);
   },
 
   isoStringToLocaleString(isoDateString) {
