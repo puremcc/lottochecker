@@ -41,7 +41,7 @@
 </template>
 
 <script>
-import UserAuth from './components/UserAuth'
+import UserAuth from "./components/UserAuth";
 import EnterTicket from "./components/EnterTicket.vue";
 import ListTickets from "./components/ListTickets.vue";
 import TicketDetails from "./components/TicketDetails";
@@ -59,10 +59,13 @@ export default {
   },
   async created() {
     try {
-      this.isDataLoading = true;
-      await this.loadWinningNumbers();
-      await this.loadTickets();
-      this.isDataLoading = false;
+      await this.loadAuthState();
+      if (this.isLoggedIn) {
+        this.isDataLoading = true;
+        await this.loadWinningNumbers();
+        await this.loadTickets();
+        this.isDataLoading = false;
+      }
     } catch (error) {
       this.error = error;
     } finally {

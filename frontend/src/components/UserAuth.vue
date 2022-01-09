@@ -1,6 +1,6 @@
 <template>
   <span>
-    <v-menu v-if="isLoggedIn" left bottom>
+    <!-- <v-menu v-if="isLoggedIn" left bottom>
       <template v-slot:activator="{ on, attrs }">
         <v-btn icon v-bind="attrs" v-on="on">
           <v-icon>mdi-account</v-icon>
@@ -10,8 +10,9 @@
       <v-list>
         <v-list-item @click="signOut">Sign out</v-list-item>
       </v-list>
-    </v-menu>
-    <v-btn v-else @click="signIn">Sign in</v-btn>
+    </v-menu> -->
+    <v-btn v-if="isLoggedIn" @click="signOut">Logout</v-btn>
+    <v-btn v-else @click="signIn">Login</v-btn>
   </span>
 </template>
 
