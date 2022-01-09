@@ -50,6 +50,13 @@ jobs:
       #
       # Build and package frontend
       #
+      - uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       # - name: Install frontend dependencies
       #   working-directory: frontend
       #   run: npm install
@@ -115,12 +122,26 @@ jobs:
           # path: dist/
           path: frontend
 
+      - uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm install
 
       - name: Build frontend for Dev
         env:
+          VUE_APP_AWS_COGNITO_REGION: ${{ secrets.VUE_APP_AWS_COGNITO_REGION }}
+          VUE_APP_USER_POOL_ID: ${{ secrets.VUE_APP_USER_POOL_ID }}
+          VUE_APP_USER_POOL_WEB_CLIENT_ID: ${{ secrets.VUE_APP_USER_POOL_WEB_CLIENT_ID }}
+          VUE_APP_AUTH_URL: ${{ secrets.VUE_APP_AUTH_URL }}
+          VUE_APP_HOST: ${{ secrets.APP_HOST_URL }}
+          VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ secrets.APP_HOST_URL }}
+          VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ secrets.APP_HOST_URL }}
           VUE_APP_API_URL: ${{ secrets.VUE_APP_API_URL }}
           VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
           VUE_APP_FIREBASE_AUTH_DOMAIN: ${{ secrets.VUE_APP_FIREBASE_AUTH_DOMAIN }}
@@ -129,7 +150,12 @@ jobs:
           VUE_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VUE_APP_FIREBASE_MESSAGING_SENDER_ID }}
           VUE_APP_FIREBASE_APP_ID: ${{ secrets.VUE_APP_FIREBASE_APP_ID }}
         working-directory: frontend
-        run: npm run build:frontend -- --dest ../dist --modern
+        run: |
+          if [[ -z $VUE_APP_AWS_COGNITO_REGION || -z $VUE_APP_USER_POOL_ID || -z $VUE_APP_USER_POOL_WEB_CLIENT_ID || -z $VUE_APP_AUTH_URL || -z $VUE_APP_OAUTH_REDIRECT_SIGNIN || -z $VUE_APP_OAUTH_REDIRECT_SIGNOUT || -z $VUE_APP_API_URL ]]; then
+              echo "A required env variable is not defined."
+              exit 1
+          fi
+          npm run build:frontend -- --dest ../dist --modern
 
       - name: Deploy frontend
         run: |
