@@ -1,18 +1,21 @@
 <template>
   <span>
-    <!-- <v-menu v-if="isLoggedIn" left bottom>
-      <template v-slot:activator="{ on, attrs }">
-        <v-btn icon v-bind="attrs" v-on="on">
-          <v-icon>mdi-account</v-icon>
-        </v-btn>
-      </template>
-
-      <v-list>
-        <v-list-item @click="signOut">Sign out</v-list-item>
-      </v-list>
-    </v-menu> -->
-    <v-btn v-if="isLoggedIn" @click="signOut">Logout</v-btn>
-    <v-btn v-else @click="signIn">Login</v-btn>
+    <span v-if="isLoggedIn">
+      <span id="username">{{ username }}</span>
+      <v-menu left bottom>
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn icon v-bind="attrs" v-on="on">
+            <v-icon>mdi-account</v-icon>
+          </v-btn>
+        </template>
+        <v-list>
+          <v-list-item @click="signOut">Sign out</v-list-item>
+        </v-list>
+      </v-menu>
+    </span>
+    <span v-else>
+      <v-btn @click="signIn" color="primary">Login</v-btn>
+    </span>
   </span>
 </template>
 
@@ -36,5 +39,8 @@ export default {
 <style>
 #user-icon {
   font-size: 1.1em;
+}
+#username {
+  color: rgba(0, 0, 0, 0.5);
 }
 </style>
