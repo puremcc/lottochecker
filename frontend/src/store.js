@@ -44,7 +44,7 @@ export const store = new Vuex.Store({
       try {
         const user = await Auth.currentAuthenticatedUser();
         context.commit("setUser", {
-          username: user.username,
+          username: user.signInUserSession.idToken.payload.email,
           accessToken: user.signInUserSession.accessToken.jwtToken,
         });
       } catch (error) {
