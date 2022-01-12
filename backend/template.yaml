@@ -12,38 +12,30 @@ Globals:
     Timeout: 3
 
 Resources:
-
-  RestApi:
-    Type: AWS::Serverless::Api
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
     Properties:
       Description: LottoChecker API
-      StageName: Prod
-      Cors:
-         AllowMethods: "'*'"
-         AllowHeaders: "'*'"
-         AllowOrigin: "'*'"
+      CorsConfiguration: # true
+        AllowMethods:
+          - GET
+        AllowHeaders:
+          - "*"
+        AllowOrigins:
+          - "*"
+        ExposeHeaders:
+          - "*"
       Auth:
-        DefaultAuthorizer: CognitoAuthorizer
         Authorizers:
-          CognitoAuthorizer:
-            UserPoolArn: !GetAtt UserPool.Arn
-
-  # HttpApi:
-  #   Type: AWS::Serverless::HttpApi
-  #   Properties:
-  #     Description: LottoChecker API
-  #     CorsConfiguration: true
-  #     Auth:
-  #       Authorizers:
-  #         OAuth2Authorizer:
-  #           AuthorizationScopes:
-  #             - email
-  #           JwtConfiguration:
-  #             Issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
-  #             Audience:
-  #               - !Ref UserPoolWebClient
-  #           IdentitySource: "$request.header.Authorization"
-  #       DefaultAuthorizer: OAuth2Authorizer
+          OAuth2Authorizer:
+            AuthorizationScopes:
+              - email
+            JwtConfiguration:
+              Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+              Audience:
+                - !Ref UserPoolWebClient
+            IdentitySource: "$request.header.Authorization"
+        DefaultAuthorizer: OAuth2Authorizer
 
   LottoFunction:
     Type: AWS::Serverless::Function
@@ -55,16 +47,10 @@ Resources:
         Variables:
           APP_HOST_URL: !Ref AppHostUrl
       Events:
-        RestApiEvent:
-          Type: Api
-          Properties:
-            RestApiId: !Ref RestApi
-            Path: /lotto/WinningNumbers/{state}/{game}
-            Method: GET
         HttpApiEvent:
           Type: HttpApi
           Properties:
-            # ApiId: !Ref HttpApi
+            ApiId: !Ref HttpApi
             Path: /lotto/WinningNumbers/{state}/{game}
             Method: GET
 
@@ -81,14 +67,14 @@ Resources:
         - AttributeDataType: String
           Name: email
           Required: false
-  
+
   UserPoolWebClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
       UserPoolId: !Ref UserPool
       ClientName: LottoCheckerFrontend
       GenerateSecret: false
-      CallbackURLs:  
+      CallbackURLs:
         - !Ref AppHostUrl
         - http://localhost:8080
       LogoutURLs:
@@ -101,17 +87,11 @@ Resources:
       Domain: !Ref AWS::StackName
       UserPoolId: !Ref UserPool
 
-
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  RestApi:
-    Description: "API Gateway endpoint URL for Prod stage for Lotto function"
-    Value: !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/lotto/WinningNumbers/{state}/{game}"
   HttpApi:
     Description: "API Gateway endpoint URL for Prod stage for Lotto function"
-    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/lotto/WinningNumbers/{state}/{game}"
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/lotto/WinningNumbers/{state}/{game}"
   CognitoRegion:
     Value: !Ref AWS::Region
   UserPoolId:
