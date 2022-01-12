@@ -21,13 +21,11 @@ export default {
   async getWinningNumbers(accessToken) {
     console.log("API_URL:", process.env.VUE_APP_API_URL);
     const url = process.env.VUE_APP_API_URL;
-    console.log(accessToken[0])
-    const config = null; 
-    // const config = {
-    //   headers: {
-    //     Authorization: `Bearer ${accessToken}`,
-    //   },
-    // };
+    const config = {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    };
 
     let winningNumbers = (await axios.get(url, config)).data;
     winningNumbers.forEach((drawing) => {
