@@ -80,6 +80,15 @@ Resources:
       LogoutURLs:
         - !Ref AppHostUrl
         - http://localhost:8080
+      SupportedIdentityProviders:
+        - COGNITO
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
 
   UserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
