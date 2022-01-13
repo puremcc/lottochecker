@@ -21,7 +21,7 @@ jobs:
       - name: Build backend
         working-directory: backend
         run: sam build
-      
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -38,7 +38,7 @@ jobs:
         run: |
           sam package \
               --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
-              > template.yaml       
+              > template.yaml
 
       - name: Upload backend artifact
         uses: actions/upload-artifact@v2
@@ -63,9 +63,9 @@ jobs:
 
       - name: Lint frontend
         working-directory: frontend
-        run: | 
+        run: |
           npm install @vue/cli-service
-          npm run lint 
+          npm run lint
 
       # - name: Build frontend
       #   working-directory: frontend
@@ -80,14 +80,14 @@ jobs:
             frontend/
             !frontend/node_modules/
           if-no-files-found: error
-  
+
   deploy-dev:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     name: Deploy to Dev
     needs: build
     environment: dev
     env:
-      ENV_NAME: dev
+      STACK_NAME: lottochecker-dev
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
@@ -108,7 +108,7 @@ jobs:
 
       - name: Deploy backend
         run: |
-          sam deploy --stack-name "lottochecker-$ENV_NAME" \
+          sam deploy --stack-name "$STACK_NAME" \
               --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
               --no-fail-on-empty-changeset \
               --no-confirm-changeset \
@@ -133,16 +133,15 @@ jobs:
         working-directory: frontend
         run: npm install
 
+      - name: Save CloudFormation outputs to file
+        working-directory: frontend
+        run: aws cloudformation describe-stacks --stack-name $STACK_NAME --query 'Stacks[0].Outputs[]' > cf_outputs.json
+
       - name: Build frontend for Dev
         env:
-          VUE_APP_AWS_COGNITO_REGION: ${{ secrets.VUE_APP_AWS_COGNITO_REGION }}
-          VUE_APP_USER_POOL_ID: ${{ secrets.VUE_APP_USER_POOL_ID }}
-          VUE_APP_USER_POOL_WEB_CLIENT_ID: ${{ secrets.VUE_APP_USER_POOL_WEB_CLIENT_ID }}
-          VUE_APP_AUTH_URL: ${{ secrets.VUE_APP_AUTH_URL }}
           VUE_APP_HOST: ${{ secrets.APP_HOST_URL }}
           VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ secrets.APP_HOST_URL }}
           VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ secrets.APP_HOST_URL }}
-          VUE_APP_API_URL: ${{ secrets.VUE_APP_API_URL }}
           VUE_APP_FIREBASE_API_KEY: ${{ secrets.VUE_APP_FIREBASE_API_KEY }}
           VUE_APP_FIREBASE_AUTH_DOMAIN: ${{ secrets.VUE_APP_FIREBASE_AUTH_DOMAIN }}
           VUE_APP_FIREBASE_PROJECT_ID: ${{ secrets.VUE_APP_FIREBASE_PROJECT_ID }}
@@ -151,10 +150,23 @@ jobs:
           VUE_APP_FIREBASE_APP_ID: ${{ secrets.VUE_APP_FIREBASE_APP_ID }}
         working-directory: frontend
         run: |
-          if [[ -z $VUE_APP_AWS_COGNITO_REGION || -z $VUE_APP_USER_POOL_ID || -z $VUE_APP_USER_POOL_WEB_CLIENT_ID || -z $VUE_APP_AUTH_URL || -z $VUE_APP_OAUTH_REDIRECT_SIGNIN || -z $VUE_APP_OAUTH_REDIRECT_SIGNOUT || -z $VUE_APP_API_URL ]]; then
-              echo "A required env variable is not defined."
-              exit 1
-          fi
+          echo "Parsing CloudFormation outputs to env vars..."
+          export VUE_APP_USER_POOL_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue' cf_outputs.json)
+          export VUE_APP_USER_POOL_WEB_CLIENT_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolWebClientId") | .OutputValue' cf_outputs.json)
+          export VUE_APP_API_URL=$(jq -r '.[] | select(.OutputKey=="HttpApi") | .OutputValue' cf_outputs.json | sed 's/{state}/'tx'/g' | sed 's/{game}/TexasLotto/g')
+          export VUE_APP_AUTH_URL=$(jq -r '.[] | select(.OutputKey=="UserPoolAuthDomain") | .OutputValue' cf_outputs.json)
+          export VUE_APP_COGNITO_REGION=$(jq -r '.[] | select(.OutputKey=="CognitoRegion") | .OutputValue' cf_outputs.json)
+          # Make sure all required vars are set.
+          echo "VUE_APP_USER_POOL_ID: $VUE_APP_USER_POOL_ID"
+          echo "VUE_APP_USER_POOL_WEB_CLIENT_ID: $VUE_APP_USER_POOL_WEB_CLIENT_ID"
+          echo "VUE_APP_API_URL: $VUE_APP_API_URL"
+          echo "VUE_APP_AUTH_URL: $VUE_APP_AUTH_URL"
+          echo "VUE_APP_COGNITO_REGION: $VUE_APP_COGNITO_REGION"
+          # if [[ -z $VUE_APP_AWS_COGNITO_REGION || -z $VUE_APP_USER_POOL_ID || -z $VUE_APP_USER_POOL_WEB_CLIENT_ID || -z $VUE_APP_AUTH_URL || -z $VUE_APP_OAUTH_REDIRECT_SIGNIN || -z $VUE_APP_OAUTH_REDIRECT_SIGNOUT || -z $VUE_APP_API_URL ]]; then
+          #     echo "One or more required env variables is not defined."
+          #     exit 1
+          # fi
+          echo "Building frontend Vue app..."
           npm run build:frontend -- --dest ../dist --modern
 
       - name: Deploy frontend
