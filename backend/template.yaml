@@ -6,6 +6,9 @@ Parameters:
   AppHostUrl:
     Type: String
     Description: URL where app will be hosted. To be added as a CORS allowed origin.
+  AdminEmail:
+    Type: String
+    Description: Email ID for the initial admin user.
 
 Globals:
   Function:
@@ -47,12 +50,18 @@ Resources:
         Variables:
           APP_HOST_URL: !Ref AppHostUrl
       Events:
-        HttpApiEvent:
+        Default:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /lotto/WinningNumbers
+            Method: GET
+        GetWinningNumbers:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
             Path: /lotto/WinningNumbers/{state}/{game}
-            Method: GET
+            Method: GET            
 
   UserPool:
     Type: AWS::Cognito::UserPool
@@ -96,11 +105,22 @@ Resources:
       Domain: !Ref AWS::StackName
       UserPoolId: !Ref UserPool
 
+  AdminUser:
+    Type: AWS::Cognito::UserPoolUser
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: !Ref AdminEmail
+      DesiredDeliveryMediums:
+        - EMAIL
+      UserAttributes:
+        - Name: email
+          Value: !Ref AdminEmail
+
 Outputs:
   # Find out more about other implicit resources you can reference within SAM
   HttpApi:
-    Description: "API Gateway endpoint URL for Prod stage for Lotto function"
-    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/lotto/WinningNumbers/{state}/{game}"
+    Description: API Gateway endpoint URL for Lotto function.
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/lotto/WinningNumbers
   CognitoRegion:
     Value: !Ref AWS::Region
   UserPoolId:
@@ -108,10 +128,4 @@ Outputs:
   UserPoolWebClientId:
     Value: !Ref UserPoolWebClient
   UserPoolAuthDomain:
-    Value: !Sub "${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
-  LottoFunction:
-    Description: "Lotto Lambda Function ARN"
-    Value: !GetAtt LottoFunction.Arn
-  LottoFunctionIamRole:
-    Description: "Implicit IAM Role created for Lotto function"
-    Value: !GetAtt LottoFunctionRole.Arn
+    Value: !Sub ${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com
