@@ -1,8 +1,8 @@
-import sys
 import datetime
 import json
+import sys
+
 import requests
-import os
 
 LOTTO_URL = "http://www.txlottery.org/export/sites/lottery/Games/Lotto_Texas/Winning_Numbers/lottotexas.csv"
 

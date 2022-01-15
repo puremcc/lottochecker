@@ -13,6 +13,8 @@ Parameters:
 Globals:
   Function:
     Timeout: 3
+    Handler: app.lambda_handler
+    Runtime: python3.8
 
 Resources:
   HttpApi:
@@ -42,8 +44,6 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: lotto/
-      Handler: app.lambda_handler
-      Runtime: python3.8
       Environment:
         Variables:
           APP_HOST_URL: !Ref AppHostUrl
@@ -59,6 +59,24 @@ Resources:
           Properties:
             ApiId: !Ref HttpApi
             Path: /lotto/WinningNumbers/{state}/{game}
+            Method: GET
+
+  LottoCheckerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lottochecker/
+      Environment:
+        Variables:
+          TICKETS_TABLE: !Ref TicketsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TicketsTable
+      Events:
+        ListTickets:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /lottochecker/tickets
             Method: GET
 
   UserPool:
@@ -117,7 +135,7 @@ Resources:
   TicketsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub ${AWS::StackName}-Tickets 
+      TableName: !Sub ${AWS::StackName}-Tickets
       KeySchema:
         - AttributeName: UserId # user@example.com
           KeyType: HASH
