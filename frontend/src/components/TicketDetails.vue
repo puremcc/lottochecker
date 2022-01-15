@@ -46,7 +46,7 @@ export default {
       ticketDetailHeaders: [
         { text: "Drawing Date", value: "drawingDate" },
         { text: "Matches", value: "matches" },
-        { text: "Prize", value: "prize" },
+        { text: "Prize", value: "fprize" },
       ],
       error: null,
     };
@@ -55,7 +55,7 @@ export default {
     ticketDetailItems() {
       return this.ticket.results.map((result, index) => {
         result.id = index;
-        result.prize = result.prize !== null ? "$" + result.prize : "--";
+        result.fprize = result.prize !== null ? "$" + result.prize : "--";
         result.matches = result.matches ? result.matches.length : "--";
         return result;
       });

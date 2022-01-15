@@ -6,13 +6,38 @@ Parameters:
   AppHostUrl:
     Type: String
     Description: URL where app will be hosted. To be added as a CORS allowed origin.
+  AdminEmail:
+    Type: String
+    Description: Email ID for the initial admin user.
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
     Timeout: 3
 
 Resources:
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Description: LottoChecker API
+      CorsConfiguration:
+        AllowMethods:
+          - GET
+        AllowHeaders:
+          - "*"
+        AllowOrigins:
+          - "*"
+      Auth:
+        Authorizers:
+          OAuth2Authorizer:
+            AuthorizationScopes:
+              - email
+            JwtConfiguration:
+              issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+              audience:
+                - !Ref UserPoolWebClient
+            IdentitySource: "$request.header.Authorization"
+        DefaultAuthorizer: OAuth2Authorizer
+
   LottoFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -23,22 +48,82 @@ Resources:
         Variables:
           APP_HOST_URL: !Ref AppHostUrl
       Events:
-        Lotto:
-          Type: Api
+        Default:
+          Type: HttpApi
           Properties:
+            ApiId: !Ref HttpApi
+            Path: /lotto/WinningNumbers
+            Method: GET
+        GetWinningNumbers:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
             Path: /lotto/WinningNumbers/{state}/{game}
             Method: GET
 
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: LottoCheckerUserPool
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      UsernameAttributes:
+        - email
+      Schema:
+        - AttributeDataType: String
+          Name: email
+          Required: false
+
+  UserPoolWebClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: LottoCheckerFrontend
+      GenerateSecret: false
+      CallbackURLs:
+        - !Ref AppHostUrl
+        - http://localhost:8080
+      LogoutURLs:
+        - !Ref AppHostUrl
+        - http://localhost:8080
+      SupportedIdentityProviders:
+        - COGNITO
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref AWS::StackName
+      UserPoolId: !Ref UserPool
+
+  AdminUser:
+    Type: AWS::Cognito::UserPoolUser
+    Properties:
+      UserPoolId: !Ref UserPool
+      Username: !Ref AdminEmail
+      DesiredDeliveryMediums:
+        - EMAIL
+      UserAttributes:
+        - Name: email
+          Value: !Ref AdminEmail
+
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  LottoApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/lotto/WinningNumbers/{state}/{game}"
-  LottoFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt LottoFunction.Arn
-  LottoFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt LottoFunctionRole.Arn
+  HttpApi:
+    Description: API Gateway endpoint URL for Lotto function.
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/lotto/WinningNumbers
+  CognitoRegion:
+    Value: !Ref AWS::Region
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolWebClientId:
+    Value: !Ref UserPoolWebClient
+  UserPoolAuthDomain:
+    Value: !Sub ${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com

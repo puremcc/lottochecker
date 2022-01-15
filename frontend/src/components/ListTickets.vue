@@ -34,7 +34,7 @@
       sort-desc
       v-model="selectedTicket"
       single-select
-      item-key="startDate + endDate"
+      item-key="id"
       show-select
       :loading="isDataLoading"
       per-page="5"

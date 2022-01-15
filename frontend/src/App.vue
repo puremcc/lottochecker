@@ -1,7 +1,11 @@
 <template>
   <v-app>
-    <v-app-bar app><h2>Lotto Checker</h2></v-app-bar>
-    <v-main>
+    <v-app-bar app>
+      <h2>Lotto Checker</h2>
+      <v-spacer></v-spacer>
+      <user-auth />
+    </v-app-bar>
+    <v-main v-if="isLoggedIn">
       <v-container>
         <base-error :error="error" />
         <v-row>
@@ -37,6 +41,7 @@
 </template>
 
 <script>
+import UserAuth from "./components/UserAuth";
 import EnterTicket from "./components/EnterTicket.vue";
 import ListTickets from "./components/ListTickets.vue";
 import TicketDetails from "./components/TicketDetails";
@@ -46,6 +51,7 @@ import { mapGetters, mapActions } from "vuex";
 export default {
   name: "app",
   components: {
+    UserAuth,
     EnterTicket,
     ListTickets,
     TicketDetails,
@@ -53,10 +59,13 @@ export default {
   },
   async created() {
     try {
-      this.isDataLoading = true;
-      await this.loadWinningNumbers();
-      await this.loadTickets();
-      this.isDataLoading = false;
+      await this.loadAuthState();
+      if (this.isLoggedIn) {
+        this.isDataLoading = true;
+        await this.loadWinningNumbers();
+        await this.loadTickets();
+        this.isDataLoading = false;
+      }
     } catch (error) {
       this.error = error;
     } finally {
@@ -72,10 +81,10 @@ export default {
     };
   },
   computed: {
-    ...mapGetters(["winningNumbers"]),
+    ...mapGetters(["winningNumbers", "isLoggedIn"]),
   },
   methods: {
-    ...mapActions(["loadWinningNumbers", "loadTickets"]),
+    ...mapActions(["loadAuthState", "loadWinningNumbers", "loadTickets"]),
     async onNewTicketSaved() {
       this.showEnterNewTicket = false;
     },
