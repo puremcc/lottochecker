@@ -19,14 +19,12 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       Description: LottoChecker API
-      CorsConfiguration: # true
+      CorsConfiguration:
         AllowMethods:
           - GET
         AllowHeaders:
           - "*"
         AllowOrigins:
-          - "*"
-        ExposeHeaders:
           - "*"
       Auth:
         Authorizers:
@@ -34,8 +32,8 @@ Resources:
             AuthorizationScopes:
               - email
             JwtConfiguration:
-              Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
-              Audience:
+              issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+              audience:
                 - !Ref UserPoolWebClient
             IdentitySource: "$request.header.Authorization"
         DefaultAuthorizer: OAuth2Authorizer
@@ -61,7 +59,7 @@ Resources:
           Properties:
             ApiId: !Ref HttpApi
             Path: /lotto/WinningNumbers/{state}/{game}
-            Method: GET            
+            Method: GET
 
   UserPool:
     Type: AWS::Cognito::UserPool
