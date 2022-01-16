@@ -14,11 +14,11 @@ export class Ticket {
     ticket.picks.forEach((pick) => {
       pick.numbers.forEach((number) => (number = +number));
     });
-    await this.service.put("/lottochecker/ticket", ticket);
+    await this.service.put("/tickets", ticket);
   }
 
   async listTickets() {
-    let resp = await this.service.get("/lottochecker/tickets");
+    let resp = await this.service.get("/tickets");
     return resp.data;
   }
 }

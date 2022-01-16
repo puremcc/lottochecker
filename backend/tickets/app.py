@@ -11,27 +11,25 @@ TICKETS_TABLE = os.environ['TICKETS_TABLE']
 
 def lambda_handler(event, context):
     username = event['requestContext']['authorizer']['jwt']['claims']['username']
-    body = None
-    status_code = 200
-    headers = {
-        'Content-Type': 'application/json'
+    response = { 
+        'statusCode': 200
     }
     dynamo = boto3.client('dynamodb')
     table = boto3.resource('dynamodb').Table(TICKETS_TABLE)
     try:
-        if 'GET /lottochecker/tickets' == event['routeKey']:
+        if 'GET /tickets' == event['routeKey']:
             resp = dynamo.query(
                 TableName=TICKETS_TABLE,
                 KeyConditionExpression='UserId = :u',
                 ExpressionAttributeValues={':u': {'S': username}}
             )
             tickets = dynamo_json.loads(resp['Items'])
-            body = list(map(lambda _: {
+            response['body'] = list(map(lambda _: {
                 'startDate': _['DateRange'][:10],
                 'endDate': _['DateRange'][11:21],
                 'picks': _['Picks']
             }, tickets))
-        elif 'PUT /lottochecker/ticket' == event['routeKey']:
+        elif 'PUT /tickets' == event['routeKey']:
             req_body = json.loads(event['body'])
             ticket = {
                 'UserId': username,
@@ -47,19 +45,17 @@ def lambda_handler(event, context):
                 })
             print(resp)
             if resp['ResponseMetadata']['HTTPStatusCode'] >= 200 and resp['ResponseMetadata']['HTTPStatusCode'] < 300:
-                body = 'Ticket successfully created.'
+                response['statusCode'] = 201
             else:
                 raise Exception(str(resp))
         else:
-            body = 'Unsupported route: {}'.format(event['routeKey'])
-            raise Exception(body)
-    # except Exception as e:
-    #     status_code = 400
-    #     body = str(e)
+            msg = 'Unsupported route: {}'.format(event['routeKey'])
+            response['body'] = msg
+            raise Exception(msg)
+    except Exception as e:
+        response['statusCode'] = 400
+        response['body'] = str(e)
     finally:
-        return json.dumps(body)
-        # return {
-        #     # 'status_code': status_code,
-        #     'body': json.dumps(body)  # ,
-        #     # 'headers': headers
-        # }
+        if 'body' in response: 
+            response['body'] = json.dumps(response['body'])
+        return response

@@ -53,19 +53,19 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /lotto/WinningNumbers
+            Path: /winningNumbers
             Method: GET
         GetWinningNumbers:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /lotto/WinningNumbers/{state}/{game}
+            Path: /winningNumbers/{state}/{game}
             Method: GET
 
-  LottoCheckerFunction:
+  TicketsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: lottochecker/
+      CodeUri: tickets/
       Environment:
         Variables:
           TICKETS_TABLE: !Ref TicketsTable
@@ -77,13 +77,13 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /lottochecker/tickets
+            Path: /tickets
             Method: GET
         PutTicket:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /lottochecker/ticket
+            Path: /tickets
             Method: PUT
 
   UserPool:
