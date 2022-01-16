@@ -78,6 +78,12 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /lottochecker/tickets
             Method: GET
+        PutTicket:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /lottochecker/ticket
+            Method: PUT
 
   UserPool:
     Type: AWS::Cognito::UserPool
