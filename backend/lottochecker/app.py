@@ -1,6 +1,6 @@
 import json
 import os
-from typing import final
+import time
 
 import boto3
 from boto3.dynamodb.conditions import Attr, Key
@@ -28,20 +28,28 @@ def lambda_handler(event, context):
             tickets = dynamo_json.loads(resp['Items'])
             body = list(map(lambda _: {
                 'startDate': _['DateRange'][:10],
-                'endDate': _['DateRange'][11:],
+                'endDate': _['DateRange'][11:21],
                 'picks': _['Picks']
             }, tickets))
         elif 'PUT /lottochecker/ticket' == event['routeKey']:
             req_body = json.loads(event['body'])
             ticket = {
                 'UserId': username,
-                'DateRange': '{}#{}'.format(req_body['startDate'], req_body['endDate']),
+                'DateRange': '{}#{}#{}'.format(req_body['startDate'], req_body['endDate'], time.time()),
                 'Picks': req_body['picks']
             }
-            resp = table.put_item(Item=ticket)
+            resp = table.put_item(
+                Item=ticket,
+                ConditionExpression='UserId <> :u AND DateRange <> :d',
+                ExpressionAttributeValues={
+                    ':u': {'S': username},
+                    ':d': {'S': ticket['DateRange']}
+                })
             print(resp)
             if resp['ResponseMetadata']['HTTPStatusCode'] >= 200 and resp['ResponseMetadata']['HTTPStatusCode'] < 300:
                 body = 'Ticket successfully created.'
+            else:
+                raise Exception(str(resp))
         else:
             body = 'Unsupported route: {}'.format(event['routeKey'])
             raise Exception(body)
