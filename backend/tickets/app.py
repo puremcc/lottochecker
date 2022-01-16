@@ -14,16 +14,10 @@ def lambda_handler(event, context):
     response = { 
         'statusCode': 200
     }
-    dynamo = boto3.client('dynamodb')
-    table = boto3.resource('dynamodb').Table(TICKETS_TABLE)
     try:
+        table = boto3.resource('dynamodb').Table(TICKETS_TABLE)
         if 'GET /tickets' == event['routeKey']:
-            resp = dynamo.query(
-                TableName=TICKETS_TABLE,
-                KeyConditionExpression='UserId = :u',
-                ExpressionAttributeValues={':u': {'S': username}}
-            )
-            tickets = dynamo_json.loads(resp['Items'])
+            tickets = table.query(KeyConditionExpression=Key('UserId').eq(username))
             response['body'] = list(map(lambda _: {
                 'startDate': _['DateRange'][:10],
                 'endDate': _['DateRange'][11:21],
