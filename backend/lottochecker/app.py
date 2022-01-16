@@ -25,7 +25,12 @@ def lambda_handler(event, context):
                 KeyConditionExpression='UserId = :u',
                 ExpressionAttributeValues={':u': {'S': username}}
             )
-            body = dynamo_json.loads(resp['Items'])
+            tickets = dynamo_json.loads(resp['Items'])
+            body = list(map(lambda _: {
+                'startDate': _['DateRange'][:10],
+                'endDate': _['DateRange'][11:],
+                'picks': _['Picks']
+            }, tickets))
         elif 'PUT /lottochecker/ticket' == event['routeKey']:
             req_body = json.loads(event['body'])
             ticket = {
@@ -40,9 +45,9 @@ def lambda_handler(event, context):
         else:
             body = 'Unsupported route: {}'.format(event['routeKey'])
             raise Exception(body)
-    except Exception as e:
-        status_code = 400
-        body = str(e)
+    # except Exception as e:
+    #     status_code = 400
+    #     body = str(e)
     finally:
         return json.dumps(body)
         # return {
@@ -50,5 +55,3 @@ def lambda_handler(event, context):
         #     'body': json.dumps(body)  # ,
         #     # 'headers': headers
         # }
-
-
