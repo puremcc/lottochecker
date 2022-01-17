@@ -13,6 +13,8 @@ Parameters:
 Globals:
   Function:
     Timeout: 3
+    Handler: app.lambda_handler
+    Runtime: python3.8
 
 Resources:
   HttpApi:
@@ -22,6 +24,7 @@ Resources:
       CorsConfiguration:
         AllowMethods:
           - GET
+          - PUT
         AllowHeaders:
           - "*"
         AllowOrigins:
@@ -42,8 +45,6 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: lotto/
-      Handler: app.lambda_handler
-      Runtime: python3.8
       Environment:
         Variables:
           APP_HOST_URL: !Ref AppHostUrl
@@ -52,19 +53,43 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /lotto/WinningNumbers
+            Path: /winningNumbers
             Method: GET
         GetWinningNumbers:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /lotto/WinningNumbers/{state}/{game}
+            Path: /winningNumbers/{state}/{game}
             Method: GET
+
+  TicketsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: tickets/
+      Environment:
+        Variables:
+          TICKETS_TABLE: !Ref TicketsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TicketsTable
+      Events:
+        ListTickets:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /tickets
+            Method: GET
+        PutTicket:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /tickets
+            Method: PUT
 
   UserPool:
     Type: AWS::Cognito::UserPool
     Properties:
-      UserPoolName: LottoCheckerUserPool
+      UserPoolName: !Sub ${AWS::StackName}-UserPool
       Policies:
         PasswordPolicy:
           MinimumLength: 8
@@ -74,12 +99,15 @@ Resources:
         - AttributeDataType: String
           Name: email
           Required: false
+      AdminCreateUserConfig:
+        InviteMessageTemplate:
+          EmailSubject: !Sub Your temporary password for $AWS::StackName
 
   UserPoolWebClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
       UserPoolId: !Ref UserPool
-      ClientName: LottoCheckerFrontend
+      ClientName: !Sub ${AWS::StackName}-frontend
       GenerateSecret: false
       CallbackURLs:
         - !Ref AppHostUrl
@@ -114,12 +142,28 @@ Resources:
         - Name: email
           Value: !Ref AdminEmail
 
+  TicketsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${AWS::StackName}-Tickets
+      KeySchema:
+        - AttributeName: UserId # user@example.com
+          KeyType: HASH
+        - AttributeName: DateRange # 2022-01-01#2022-01-30
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: UserId
+          AttributeType: S
+        - AttributeName: DateRange
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+
 Outputs:
   # Find out more about other implicit resources you can reference within SAM
   HttpApi:
-    Description: API Gateway endpoint URL for Lotto function.
-    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/lotto/WinningNumbers
-  CognitoRegion:
+    Description: API base URL for LottoChecker services.
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  UserPoolRegion:
     Value: !Ref AWS::Region
   UserPoolId:
     Value: !Ref UserPool

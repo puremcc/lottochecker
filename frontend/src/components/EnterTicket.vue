@@ -133,15 +133,13 @@
 </template>
 
 <script>
-import { Ticket } from "../models/firebase";
 import utils from "../utils";
-
-const ticketModel = new Ticket();
 
 const today = () => new Date().toISOString().substring(0, 10);
 
 export default {
   name: "EnterTicket",
+  emits: ["saved", "canceled"],
   data() {
     return {
       ticket: {
@@ -157,12 +155,11 @@ export default {
   },
   methods: {
     async saveTicket() {
-      let docRef = await ticketModel.createTicket(this.ticket);
-      this.$store.dispatch("loadTickets");
-      if (docRef) {
-        this.ticketSaved = true;
-        this.$emit("saved");
-      }
+      await this.$store.dispatch("saveTicket", {
+        ticket: this.ticket,
+      });
+      this.ticketSaved = true;
+      this.$emit("saved");
       this.resetTicket();
     },
     resetTicket() {

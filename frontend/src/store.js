@@ -1,15 +1,13 @@
 import Vue from "vue";
 import Vuex from "vuex";
 import utils from "./utils";
-import { Ticket } from "./models/firebase";
+import { Ticket } from "./models/tickets";
 
 import Amplify, { Auth } from "aws-amplify";
 import awsconfig from "./aws-exports";
 
 Vue.use(Vuex);
-Amplify.configure(awsconfig)
-
-const ticketModel = new Ticket();
+Amplify.configure(awsconfig);
 
 export const store = new Vuex.Store({
   state() {
@@ -76,23 +74,32 @@ export const store = new Vuex.Store({
       if (!context.getters.shouldUpdate) {
         return;
       }
-      const winningNumbers = await utils.getWinningNumbers(context.state.accessToken);
+      const winningNumbers = await utils.getWinningNumbers(
+        context.state.accessToken
+      );
       context.commit("setWinningNumbers", winningNumbers);
       context.commit("setLastFetched");
     },
     async loadTickets(context) {
-      context.commit("setTickets", await ticketModel.listTickets());
+      let ticketModel = new Ticket(context.state.accessToken);
+      let tickets = await ticketModel.listTickets();
+      context.commit("setTickets", tickets);
+    },
+    async saveTicket(context, payload) {
+      let ticketModel = new Ticket(context.state.accessToken);
+      await ticketModel.createTicket(payload.ticket);
+      context.dispatch("loadTickets");
     },
   },
   getters: {
     username(state) {
-      return state.username
+      return state.username;
     },
     isLoggedIn(state) {
-      return !!state.accessToken
+      return !!state.accessToken;
     },
     accessToken(state) {
-      return state.accessToken
+      return state.accessToken;
     },
     winningNumbers(state) {
       return state.winningNumbers;
