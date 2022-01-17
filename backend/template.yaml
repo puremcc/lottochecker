@@ -99,6 +99,9 @@ Resources:
         - AttributeDataType: String
           Name: email
           Required: false
+      AdminCreateUserConfig:
+        InviteMessageTemplate:
+          EmailSubject: !Sub Your temporary password for $AWS::StackName
 
   UserPoolWebClient:
     Type: AWS::Cognito::UserPoolClient
@@ -158,9 +161,9 @@ Resources:
 Outputs:
   # Find out more about other implicit resources you can reference within SAM
   HttpApi:
-    Description: API Gateway endpoint URL for Lotto function.
-    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/lotto/WinningNumbers
-  CognitoRegion:
+    Description: API base URL for LottoChecker services.
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  UserPoolRegion:
     Value: !Ref AWS::Region
   UserPoolId:
     Value: !Ref UserPool

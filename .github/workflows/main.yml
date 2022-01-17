@@ -149,7 +149,7 @@ jobs:
           export VUE_APP_USER_POOL_WEB_CLIENT_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolWebClientId") | .OutputValue' cf_outputs.json)
           export VUE_APP_API_URL=$(jq -r '.[] | select(.OutputKey=="HttpApi") | .OutputValue' cf_outputs.json | sed 's/{state}/'tx'/g' | sed 's/{game}/TexasLotto/g')
           export VUE_APP_AUTH_URL=$(jq -r '.[] | select(.OutputKey=="UserPoolAuthDomain") | .OutputValue' cf_outputs.json)
-          export VUE_APP_COGNITO_REGION=$(jq -r '.[] | select(.OutputKey=="CognitoRegion") | .OutputValue' cf_outputs.json)
+          export VUE_APP_COGNITO_REGION=$(jq -r '.[] | select(.OutputKey=="UserPoolRegion") | .OutputValue' cf_outputs.json)
           # Make sure all required vars are set.
           echo "VUE_APP_USER_POOL_ID: $VUE_APP_USER_POOL_ID"
           echo "VUE_APP_USER_POOL_WEB_CLIENT_ID: $VUE_APP_USER_POOL_WEB_CLIENT_ID"
