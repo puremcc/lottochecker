@@ -113,7 +113,7 @@ jobs:
               --no-fail-on-empty-changeset \
               --no-confirm-changeset \
               --capabilities CAPABILITY_IAM \
-              --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }}"
+              --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }} AdminEmail=${{ secrets.ADMIN_EMAIL }}"
 
       - name: Download frontend artifact
         uses: actions/download-artifact@v2
