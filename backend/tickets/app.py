@@ -10,46 +10,53 @@ TICKETS_TABLE = os.environ['TICKETS_TABLE']
 
 
 def lambda_handler(event, context):
-    username = event['requestContext']['authorizer']['jwt']['claims']['username']
-    response = { 
+    USERNAME = event['requestContext']['authorizer']['jwt']['claims']['username']
+    response = {
         'statusCode': 200
     }
-    try:
-        table = boto3.resource('dynamodb').Table(TICKETS_TABLE)
-        if 'GET /tickets' == event['routeKey']:
-            tickets = table.query(KeyConditionExpression=Key('UserId').eq(username))
-            response['body'] = list(map(lambda _: {
-                'startDate': _['DateRange'][:10],
-                'endDate': _['DateRange'][11:21],
-                'picks': _['Picks']
-            }, tickets))
-        elif 'PUT /tickets' == event['routeKey']:
-            req_body = json.loads(event['body'])
-            ticket = {
-                'UserId': username,
-                'DateRange': '{}#{}#{}'.format(req_body['startDate'], req_body['endDate'], time.time()),
-                'Picks': req_body['picks']
-            }
-            resp = table.put_item(
-                Item=ticket,
-                ConditionExpression='UserId <> :u AND DateRange <> :d',
-                ExpressionAttributeValues={
-                    ':u': {'S': username},
-                    ':d': {'S': ticket['DateRange']}
-                })
-            print(resp)
-            if resp['ResponseMetadata']['HTTPStatusCode'] >= 200 and resp['ResponseMetadata']['HTTPStatusCode'] < 300:
-                response['statusCode'] = 201
-            else:
-                raise Exception(str(resp))
+    table = boto3.resource('dynamodb').Table(TICKETS_TABLE)
+    if 'GET /tickets' == event['routeKey']:
+        resp = table.query(KeyConditionExpression=Key('UserId').eq(USERNAME))
+        if not 200 <= resp['ResponseMetadata']['HTTPStatusCode'] < 300:
+            raise Exception(str(resp))
+        response['body'] = [
+            {
+                'startDate': item['DateRange'][:10],
+                'endDate': item['DateRange'][11:21],
+                'picks': [
+                    # Cast each number to an int.
+                    {'numbers': [int(n) for n in p['numbers']]}
+                    for p in item['Picks']
+                ]
+            } for item in resp['Items']
+        ]
+    elif 'PUT /tickets' == event['routeKey']:
+        req_body = json.loads(event['body'])
+        ticket = {
+            'UserId': USERNAME,
+            'DateRange': '{}#{}#{}'.format(req_body['startDate'], req_body['endDate'], time.time()),
+            'Picks': [
+                {'numbers': set([int(n) for n in p['numbers']])}
+                for p in req_body['picks']
+            ]
+        }
+        resp = table.put_item(
+            Item=ticket,
+            ConditionExpression='UserId <> :u AND DateRange <> :d',
+            ExpressionAttributeValues={
+                ':u': {'S': USERNAME},
+                ':d': {'S': ticket['DateRange']}
+            })
+        print(resp)
+        if 200 <= resp['ResponseMetadata']['HTTPStatusCode'] < 300:
+            response['statusCode'] = 201
         else:
-            msg = 'Unsupported route: {}'.format(event['routeKey'])
-            response['body'] = msg
-            raise Exception(msg)
-    except Exception as e:
-        response['statusCode'] = 400
-        response['body'] = str(e)
-    finally:
-        if 'body' in response: 
-            response['body'] = json.dumps(response['body'])
-        return response
+            raise Exception(str(resp))
+    else:
+        msg = 'Unsupported route: {}'.format(event['routeKey'])
+        response['body'] = msg
+        raise Exception(msg)
+
+    if 'body' in response:
+        response['body'] = json.dumps(response['body'])
+    return response
