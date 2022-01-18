@@ -44,7 +44,7 @@ Resources:
   LottoFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: lotto/
+      CodeUri: functions/lotto/
       Environment:
         Variables:
           APP_HOST_URL: !Ref AppHostUrl
@@ -65,7 +65,7 @@ Resources:
   TicketsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: tickets/
+      CodeUri: functions/tickets/
       Environment:
         Variables:
           TICKETS_TABLE: !Ref TicketsTable
@@ -85,6 +85,20 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /tickets
             Method: PUT
+
+  ResultsEtlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/etl/
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref LotteryResultsTable
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: cron(1 5 ? * * *) # Every night at 11:01 PM CST (UTC-6)
+            Enabled: True
 
   UserPool:
     Type: AWS::Cognito::UserPool
@@ -155,6 +169,22 @@ Resources:
         - AttributeName: UserId
           AttributeType: S
         - AttributeName: DateRange
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+
+  LotteryResultsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${AWS::StackName}-LotteryResults
+      KeySchema:
+        - AttributeName: GameId
+          KeyType: HASH
+        - AttributeName: DrawingDate
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: GameId
+          AttributeType: S
+        - AttributeName: DrawingDate
           AttributeType: S
       BillingMode: PAY_PER_REQUEST
 
