@@ -102,7 +102,16 @@ Resources:
       AdminCreateUserConfig:
         InviteMessageTemplate:
           EmailSubject: !Sub Your temporary password for $AWS::StackName
-
+      AutoVerifiedAttributes:
+        - email
+      ## TODO: #10 Setup InviteMessageTemplate with SES.
+      # EmailConfiguration:
+      #   EmailSendingAccount: DEVELOPER
+      #   SourceArn: !Ref FromEmailSesArn
+      # AdminCreateUserConfig:
+      #   InviteMessageTemplate:
+      #     EmailSubject: !Sub Your temporary password for $AWS::StackName
+      
   UserPoolWebClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
