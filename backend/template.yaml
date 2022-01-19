@@ -86,10 +86,14 @@ Resources:
             Path: /tickets
             Method: PUT
 
-  ResultsEtlFunction:
+  LotteryResultsEtlFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: functions/etl/
+      Timeout: 30
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LotteryResultsTable
       Environment:
         Variables:
           TABLE_NAME: !Ref LotteryResultsTable
@@ -115,7 +119,7 @@ Resources:
           Required: false
       AdminCreateUserConfig:
         InviteMessageTemplate:
-          EmailSubject: !Sub Your temporary password for $AWS::StackName
+          EmailSubject: !Sub Your temporary password for LottoChecker (${AWS::StackName})
 
   UserPoolWebClient:
     Type: AWS::Cognito::UserPoolClient
