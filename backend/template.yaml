@@ -41,13 +41,18 @@ Resources:
             IdentitySource: "$request.header.Authorization"
         DefaultAuthorizer: OAuth2Authorizer
 
-  LottoFunction:
+  LotteryResultsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: functions/lotto/
+      CodeUri: functions/lottery_results/
+      Timeout: 5
       Environment:
         Variables:
           APP_HOST_URL: !Ref AppHostUrl
+          TABLE_NAME: !Ref LotteryResultsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref LotteryResultsTable
       Events:
         Default:
           Type: HttpApi

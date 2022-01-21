@@ -1,6 +1,7 @@
 import Vue from "vue";
 import Vuex from "vuex";
 import utils from "./utils";
+import lotteryResults from "./models/lotteryResults";
 import { Ticket } from "./models/tickets";
 
 import Amplify, { Auth } from "aws-amplify";
@@ -74,7 +75,7 @@ export const store = new Vuex.Store({
       if (!context.getters.shouldUpdate) {
         return;
       }
-      const winningNumbers = await utils.getWinningNumbers(
+      const winningNumbers = await lotteryResults.getWinningNumbers(
         context.state.accessToken
       );
       context.commit("setWinningNumbers", winningNumbers);
