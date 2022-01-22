@@ -167,6 +167,8 @@ Resources:
 
   TicketsTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TableName: !Sub ${AWS::StackName}-Tickets
       KeySchema:
