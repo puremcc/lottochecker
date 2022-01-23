@@ -1,11 +1,12 @@
 import os
-
+import csv
 import boto3
 import requests
+from io import StringIO
 from boto3.dynamodb.conditions import Key
 
 URL_TEMPLATE = 'https://www.txlottery.org/export/sites/lottery/Games/{}/Winning_Numbers/{}.csv'
-TABLE_NAME = os.environ['TABLE_NAME']
+LOTTERY_RESULTS_TABLE = os.environ['TABLE_NAME']
 
 
 class Games:
@@ -31,27 +32,23 @@ def extract_winning_numbers(game_id: str) -> list:
         game_id.replace(' ', '').lower()
     )
     resp = requests.get(url)
-
+    reader = csv.DictReader(StringIO(resp.text),
+                            fieldnames=['GameName', 'Month', 'Day', 'Year'],
+                            restkey='Numbers')
     winning_numbers = []
-    for row in resp.text.split("\r\n")[-2:0:-1]:
-        cols = row.split(",")
-        y, m, d = int(cols[3]), int(cols[1]), int(cols[2])
-        this_row = {
-            'DrawingDate': '{}-{:02d}-{:02d}'.format(y, m, d),  # YYYY-MM-DD
-            'GameId': cols[0].replace(' ', '').lower(),
-            'WinningNumbers': [int(n) for n in cols[4:]]
-        }
-        winning_numbers.append(this_row)
-
-    print(
-        f'Extracted {len(winning_numbers)} records from source for {game_id}.')
+    for row in reader:
+        winning_numbers.append({
+            'DrawingDate': '{}-{:02d}-{:02d}'.format(int(row['Year']), int(row['Month']), int(row['Day'])),
+            'GameId': row['GameName'].replace(' ', '').lower(),
+            'WinningNumbers': [int(n) for n in row['Numbers']]
+        })
 
     return winning_numbers
 
 
 def load_winning_numbers(winning_numbers: list):
     game_id = str(winning_numbers[0]['GameId'])
-    table = boto3.resource('dynamodb').Table(TABLE_NAME)
+    table = boto3.resource('dynamodb').Table(LOTTERY_RESULTS_TABLE)
 
     # Get latest loaded record from target table.
     resp = table.query(
@@ -74,7 +71,5 @@ def load_winning_numbers(winning_numbers: list):
     with table.batch_writer() as batch:
         for result in results_to_load:
             batch.put_item(Item=result)
-
-    print(f'Loaded {len(results_to_load):,} results for {game_id}.')
 
     return len(results_to_load)
