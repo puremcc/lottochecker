@@ -21,6 +21,9 @@ import requests
 def main(file_path: str, api_url: str, access_token: str):
     api_url += '/tickets'
     tickets = json.load(open(file_path))
+    for ticket in tickets:
+        ticket['startDate'], ticket['endDate'] = ticket['DateRange'].split('#')[:2]
+        ticket['picks'] = ticket['Picks']
 
     all_tickets = list_tickets(api_url, access_token)
     print(f'Total tickets in DB: {len(all_tickets)}')
@@ -60,4 +63,4 @@ if __name__ == '__main__':
     parser.add_argument('--api-url', required=True)
     parser.add_argument('--access-token', required=True)
     args = parser.parse_args()
-    main(args.api_url, args.access_token)
+    main(args.file_path, args.api_url, args.access_token)
