@@ -2,6 +2,7 @@ import { DateTime } from "luxon";
 
 export default {
   expandTicket(sStartDate, sEndDate, numbers) {
+    console.log('[expandTicket]:', sStartDate, sEndDate, numbers)
     const picks = [];
     let drawingDate = DateTime.fromISO(sStartDate, { zone: "America/Chicago" });
     const endDate = DateTime.fromISO(sEndDate, { zone: "America/Chicago" });

@@ -64,7 +64,7 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /winningNumbers/{state}/{game}
+            Path: /winningNumbers/{game}
             Method: GET
 
   TicketsFunction:

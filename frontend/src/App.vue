@@ -62,8 +62,7 @@ export default {
       await this.loadAuthState();
       if (this.isLoggedIn) {
         this.isDataLoading = true;
-        await this.loadWinningNumbers();
-        await this.loadTickets();
+        await this.loadTicketResults();
         this.isDataLoading = false;
       }
     } catch (error) {
@@ -84,7 +83,7 @@ export default {
     ...mapGetters(["winningNumbers", "isLoggedIn"]),
   },
   methods: {
-    ...mapActions(["loadAuthState", "loadWinningNumbers", "loadTickets"]),
+    ...mapActions(["loadAuthState", "loadTicketResults"]),
     async onNewTicketSaved() {
       this.showEnterNewTicket = false;
     },
