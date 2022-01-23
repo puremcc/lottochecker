@@ -1,7 +1,6 @@
 import json
 import os
-# from datetime import date, datetime, timedelta
-from decimal import Decimal
+from datetime import date, datetime, timedelta
 from typing import List
 
 import boto3
@@ -11,21 +10,29 @@ TABLE_NAME = os.environ['TABLE_NAME']
 
 
 def lambda_handler(event, context):
+    today = datetime.today().date()
+    from_date = (today - timedelta(days=365)).isoformat()
+    to_date = today.isoformat()
+    if 'queryStringParameters' in event:
+        from_date = event['queryStringParameters'].get('fromDate') or from_date
+        to_date = event['queryStringParameters'].get('toDate') or to_date
     game_id = 'lottotexas'  # event['pathParameters']['game']
-    num_results = 50  # event['queryParams']['limit']
-    # today = datetime.today().date()
+    # num_results = 50  # event['queryParams']['limit']
     table = boto3.resource('dynamodb').Table(TABLE_NAME)
     resp = table.query(
-        KeyConditionExpression=Key('GameId').eq(game_id),
-        ScanIndexForward=False,
-        Limit=num_results)
+        KeyConditionExpression=Key('GameId').eq(game_id)
+        & Key('DrawingDate').between(from_date, to_date),
+        ScanIndexForward=False)  # Sort descending.
 
-    items = []
+    tickets = []
     for item in resp['Items']:
-        item['WinningNumbers'] = [int(n) for n in item['WinningNumbers']]
-        items.append(item)
+        tickets.append({
+            'drawingDate': item['DrawingDate'],
+            'gameId': item['GameId'],
+            'numbers': [int(n) for n in item['WinningNumbers']]
+        })
 
     return {
         "statusCode": 200,
-        "body": json.dumps(resp['Items'])
+        "body": json.dumps(tickets)
     }

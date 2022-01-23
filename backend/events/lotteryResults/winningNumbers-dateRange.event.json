@@ -1,0 +1,6 @@
+{
+  "queryStringParameters": {
+    "fromDate": "2022-01-01",
+    "toDate": "2022-01-31"
+  }
+}
