@@ -3,8 +3,7 @@ import os
 import time
 
 import boto3
-from boto3.dynamodb.conditions import Attr, Key
-from dynamodb_json import json_util as dynamo_json
+from boto3.dynamodb.conditions import Key
 
 TICKETS_TABLE = os.environ['TICKETS_TABLE']
 

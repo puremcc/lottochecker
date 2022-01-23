@@ -41,13 +41,18 @@ Resources:
             IdentitySource: "$request.header.Authorization"
         DefaultAuthorizer: OAuth2Authorizer
 
-  LottoFunction:
+  LotteryResultsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: lotto/
+      CodeUri: functions/lottery_results/
+      Timeout: 5
       Environment:
         Variables:
           APP_HOST_URL: !Ref AppHostUrl
+          TABLE_NAME: !Ref LotteryResultsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref LotteryResultsTable
       Events:
         Default:
           Type: HttpApi
@@ -59,13 +64,13 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /winningNumbers/{state}/{game}
+            Path: /winningNumbers/{game}
             Method: GET
 
   TicketsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: tickets/
+      CodeUri: functions/tickets/
       Environment:
         Variables:
           TICKETS_TABLE: !Ref TicketsTable
@@ -86,6 +91,24 @@ Resources:
             Path: /tickets
             Method: PUT
 
+  LotteryResultsEtlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/etl/
+      Timeout: 30
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LotteryResultsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref LotteryResultsTable
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: cron(1 5 ? * * *) # Every night at 11:01 PM CST (UTC-6)
+            Enabled: True
+
   UserPool:
     Type: AWS::Cognito::UserPool
     Properties:
@@ -101,17 +124,8 @@ Resources:
           Required: false
       AdminCreateUserConfig:
         InviteMessageTemplate:
-          EmailSubject: !Sub Your temporary password for $AWS::StackName
-      AutoVerifiedAttributes:
-        - email
-      ## TODO: #10 Setup InviteMessageTemplate with SES.
-      # EmailConfiguration:
-      #   EmailSendingAccount: DEVELOPER
-      #   SourceArn: !Ref FromEmailSesArn
-      # AdminCreateUserConfig:
-      #   InviteMessageTemplate:
-      #     EmailSubject: !Sub Your temporary password for $AWS::StackName
-      
+          EmailSubject: !Sub Your temporary password for LottoChecker (${AWS::StackName})
+
   UserPoolWebClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
@@ -153,6 +167,8 @@ Resources:
 
   TicketsTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TableName: !Sub ${AWS::StackName}-Tickets
       KeySchema:
@@ -164,6 +180,22 @@ Resources:
         - AttributeName: UserId
           AttributeType: S
         - AttributeName: DateRange
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+
+  LotteryResultsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${AWS::StackName}-LotteryResults
+      KeySchema:
+        - AttributeName: GameId
+          KeyType: HASH
+        - AttributeName: DrawingDate
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: GameId
+          AttributeType: S
+        - AttributeName: DrawingDate
           AttributeType: S
       BillingMode: PAY_PER_REQUEST
 

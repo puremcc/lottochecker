@@ -1,6 +1,7 @@
 import Vue from "vue";
 import Vuex from "vuex";
 import utils from "./utils";
+import lotteryResults from "./models/lotteryResults";
 import { Ticket } from "./models/tickets";
 
 import Amplify, { Auth } from "aws-amplify";
@@ -14,9 +15,9 @@ export const store = new Vuex.Store({
     return {
       username: null,
       accessToken: null,
-      winningNumbers: JSON.parse(localStorage.getItem("winningNumbers")) || [],
-      lastFetched: new Date(+localStorage.getItem("lastFetched")) || null,
+      winningNumbers: [],
       tickets: [],
+      ticketResults: [],
     };
   },
   mutations: {
@@ -26,14 +27,12 @@ export const store = new Vuex.Store({
     },
     setWinningNumbers(state, payload) {
       state.winningNumbers = payload;
-      localStorage.setItem("winningNumbers", JSON.stringify(payload));
-    },
-    setLastFetched(state) {
-      state.lastFetched = new Date().getTime();
-      localStorage.setItem("lastFetched", JSON.stringify(state.lastFetched));
     },
     setTickets(state, payload) {
       state.tickets = payload;
+    },
+    setTicketResults(state, payload) {
+      state.ticketResults = payload;
     },
   },
   actions: {
@@ -65,25 +64,54 @@ export const store = new Vuex.Store({
         throw error;
       }
     },
-    async loadWinningNumbers(context) {
+    async loadWinningNumbers(context, payload) {
       console.log("loadWinningNumbers...");
-      console.log(
-        " - lastFetched: " + context.state.lastFetched.toLocaleString()
-      );
-      console.log(" - shouldUpdate: " + context.getters.shouldUpdate);
-      if (!context.getters.shouldUpdate) {
-        return;
-      }
-      const winningNumbers = await utils.getWinningNumbers(
-        context.state.accessToken
+      const winningNumbers = await lotteryResults.getWinningNumbers(
+        context.state.accessToken,
+        payload.fromDate,
+        payload.toDate
       );
       context.commit("setWinningNumbers", winningNumbers);
-      context.commit("setLastFetched");
     },
     async loadTickets(context) {
-      let ticketModel = new Ticket(context.state.accessToken);
-      let tickets = await ticketModel.listTickets();
+      let ticketService = new Ticket(context.state.accessToken);
+      let tickets = await ticketService.listTickets();
       context.commit("setTickets", tickets);
+    },
+    async loadTicketResults(context) {
+      await context.dispatch("loadTickets");
+
+      // Determine data range of winningNumbers to retrieve based on min/max of ticket dates.
+      // Get earliest ticket startDate.
+      let fromDates = context.state.tickets.map((_) => _.startDate);
+      fromDates.sort((a, b) => a > b);
+      let fromDate = fromDates[0];
+
+      // Get latest ticket endDate.
+      let toDates = context.state.tickets.map((_) => _.startDate);
+      toDates.sort((a, b) => a < b);
+      let toDate = toDates[0];
+
+      await context.dispatch("loadWinningNumbers", { fromDate, toDate });
+
+      // Generate ticket results.
+      const ticketResults = context.state.tickets.map((ticket) => {
+        console.log("[store.getters.results]:", ticket);
+        ticket.dates = `${ticket.startDate} – ${ticket.endDate}`;
+        ticket.results = utils.getResults(ticket, context.state.winningNumbers);
+        ticket.playsRemaining = ticket.results.filter(
+          (result) => !result.winningNumbers
+        ).length;
+        ticket.picks.map((pick) => {
+          pick.numbers = pick.numbers.join(", ");
+          return pick;
+        });
+        ticket.prize = ticket.results
+          .map((result) => result.prize)
+          .reduce((a, b) => a + b, 0);
+        return ticket;
+      });
+      context.commit("setTicketResults", ticketResults);
     },
     async saveTicket(context, payload) {
       let ticketModel = new Ticket(context.state.accessToken);
@@ -104,34 +132,11 @@ export const store = new Vuex.Store({
     winningNumbers(state) {
       return state.winningNumbers;
     },
-    shouldUpdate(state) {
-      const lastFetched = state.lastFetched;
-      if (!lastFetched) {
-        return true;
-      }
-      const currentTimeStamp = new Date().getTime();
-      return (currentTimeStamp - lastFetched) / 1000 > 3600;
-    },
     tickets(state) {
       return state.tickets;
     },
     results(state) {
-      return state.tickets.map((ticket) => {
-        ticket.dates = `${ticket.startDate} – ${ticket.endDate}`;
-        ticket.results = utils.getResults(ticket, state.winningNumbers);
-        ticket.playsRemaining = ticket.results.filter(
-          (result) => !result.winningNumbers
-        ).length;
-        // ticket.picks[0].numbers = ticket.picks[0].numbers.join(", ");
-        ticket.picks.map((pick) => {
-          pick.numbers = pick.numbers.join(", ");
-          return pick;
-        });
-        ticket.prize = ticket.results
-          .map((result) => result.prize)
-          .reduce((a, b) => a + b, 0);
-        return ticket;
-      });
+      return state.ticketResults;
     },
   },
 });

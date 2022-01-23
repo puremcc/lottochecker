@@ -1,8 +1,8 @@
-import axios from "axios";
 import { DateTime } from "luxon";
 
 export default {
   expandTicket(sStartDate, sEndDate, numbers) {
+    console.log('[expandTicket]:', sStartDate, sEndDate, numbers)
     const picks = [];
     let drawingDate = DateTime.fromISO(sStartDate, { zone: "America/Chicago" });
     const endDate = DateTime.fromISO(sEndDate, { zone: "America/Chicago" });
@@ -16,26 +16,6 @@ export default {
       drawingDate = drawingDate.plus({ days: 1 });
     }
     return picks;
-  },
-
-  async getWinningNumbers(accessToken) {
-    console.log("API_URL:", process.env.VUE_APP_API_URL);
-    const url = `${process.env.VUE_APP_API_URL}/winningNumbers`;
-    const config = {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    };
-
-    let winningNumbers = (await axios.get(url, config)).data;
-    winningNumbers.forEach((drawing) => {
-      drawing.drawingDate = DateTime.fromFormat(
-        drawing.drawingDate,
-        "M/d/yyyy"
-      ).toISODate();
-      drawing.numbers = drawing.numbers.map((x) => +x);
-    });
-    return winningNumbers;
   },
 
   getResults(ticket, winningNumbers) {
