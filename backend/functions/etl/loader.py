@@ -1,8 +1,9 @@
-import os
 import csv
+import os
+from io import StringIO
+
 import boto3
 import requests
-from io import StringIO
 from boto3.dynamodb.conditions import Key
 
 URL_TEMPLATE = 'https://www.txlottery.org/export/sites/lottery/Games/{}/Winning_Numbers/{}.csv'
