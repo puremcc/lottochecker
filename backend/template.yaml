@@ -99,6 +99,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref LotteryResultsTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt LotteryResultsEtlFailureTopic.TopicName
       Environment:
         Variables:
           TABLE_NAME: !Ref LotteryResultsTable
@@ -108,6 +110,25 @@ Resources:
           Properties:
             Schedule: cron(1 5 ? * * *) # Every night at 11:01 PM CST (UTC-6)
             Enabled: True
+
+  LotteryResultsEtlFailureTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Lottery Results ETL Failure
+      Subscription:
+        - Endpoint: !Ref AdminEmail
+          Protocol: email
+      TopicName: !Sub ${AWS::StackName}-LotteryResultsEtlFailure
+
+  LotteryResultsEtlFailureDestination:
+      Type: AWS::Lambda::EventInvokeConfig
+      Properties:
+        FunctionName: !Ref LotteryResultsEtlFunction
+        Qualifier: "$LATEST"
+        DestinationConfig:
+          OnFailure:
+            Destination: !Ref LotteryResultsEtlFailureTopic
+
 
   UserPool:
     Type: AWS::Cognito::UserPool
