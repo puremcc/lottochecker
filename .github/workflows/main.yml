@@ -89,9 +89,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Build & Deploy Feature
     environment: dev
+    env:
+      STACK_NAME_SUFFIX: $(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]')
     steps:
       - uses: actions/checkout@v2
-      
+
       - name: Build backend
         working-directory: backend
         run: sam build
@@ -116,6 +118,75 @@ jobs:
               --no-confirm-changeset \
               --capabilities CAPABILITY_IAM \
               --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }} AdminEmail=${{ secrets.ADMIN_EMAIL }}"
+
+      # Build & Deploy Feature Frontend
+      - name: Build frontend infra
+        working-directory: frontend
+        run: sam build
+
+      - name: Deploy frontend infra
+        working-directory: frontend
+        run: |
+          sam deploy --stack-name lottochecker-fe-$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') \
+              --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
+              --no-fail-on-empty-changeset \
+              --no-confirm-changeset \
+              --capabilities CAPABILITY_IAM \
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Save CloudFormation outputs to file
+        working-directory: frontend
+        run: |
+          aws cloudformation describe-stacks --stack-name $STACK_NAME \
+              --query 'Stacks[0].Outputs[]' > cf_outputs.json
+          aws cloudformation describe-stacks --stack-name lottochecker-fe-$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') \
+              --query 'Stacks[0].Outputs[]' >> cf_outputs.json
+
+      - name: Build frontend for Dev
+        env:
+          VUE_APP_HOST: ${{ secrets.APP_HOST_URL }}
+          VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ secrets.APP_HOST_URL }}
+          VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ secrets.APP_HOST_URL }}
+        working-directory: frontend
+        run: |
+          echo "Parsing CloudFormation outputs to env vars..."
+          export VUE_APP_USER_POOL_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue' cf_outputs.json)
+          export VUE_APP_USER_POOL_WEB_CLIENT_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolWebClientId") | .OutputValue' cf_outputs.json)
+          export VUE_APP_API_URL=$(jq -r '.[] | select(.OutputKey=="HttpApi") | .OutputValue' cf_outputs.json)
+          export VUE_APP_AUTH_URL=$(jq -r '.[] | select(.OutputKey=="UserPoolAuthDomain") | .OutputValue' cf_outputs.json)
+          export VUE_APP_COGNITO_REGION=$(jq -r '.[] | select(.OutputKey=="UserPoolRegion") | .OutputValue' cf_outputs.json)
+          # Make sure all required vars are set.
+          echo "VUE_APP_USER_POOL_ID: $VUE_APP_USER_POOL_ID"
+          echo "VUE_APP_USER_POOL_WEB_CLIENT_ID: $VUE_APP_USER_POOL_WEB_CLIENT_ID"
+          echo "VUE_APP_API_URL: $VUE_APP_API_URL"
+          echo "VUE_APP_AUTH_URL: $VUE_APP_AUTH_URL"
+          echo "VUE_APP_COGNITO_REGION: $VUE_APP_COGNITO_REGION"
+          # if [[ -z $VUE_APP_AWS_COGNITO_REGION || -z $VUE_APP_USER_POOL_ID || -z $VUE_APP_USER_POOL_WEB_CLIENT_ID || -z $VUE_APP_AUTH_URL || -z $VUE_APP_OAUTH_REDIRECT_SIGNIN || -z $VUE_APP_OAUTH_REDIRECT_SIGNOUT || -z $VUE_APP_API_URL ]]; then
+          #     echo "One or more required env variables is not defined."
+          #     exit 1
+          # fi
+          echo "Building frontend Vue app..."
+          npm run build:frontend -- --dest ../dist --modern
+
+      - name: Deploy frontend
+        run: |
+          export BUCKET_NAME=$(jq -r '.[] | select(.OutputKey=="BucketName") | .OutputValue' cf_outputs.json) && echo "BUCKET_NAME: $BUCKET_NAME"
+          export DISTRIBUTION_ID=$(jq -r '.[] | select(.OutputKey=="DistributionId") | .OutputValue' cf_outputs.json) && echo "DISTRIBUTION_ID: $DISTRIBUTION_ID"
+          aws s3 sync \
+              --delete dist/ "s3://$BUCKET_NAME"
+          aws cloudfront create-invalidation \
+              --distribution-id "DISTRIBUTION_ID" \
+              --paths "/*" \
 
   delete-feature:
     if: startsWith(github.event.ref, 'feature') && github.event_name == 'delete'
@@ -142,8 +213,11 @@ jobs:
         working-directory: backend
         run: |
           sam delete \
-            --stack-name lottochecker-$(echo ${FEATURE_BRANCH_NAME##*/} | tr -cd '[a-zA-Z0-9-]') \
-            --no-prompts
+              --stack-name lottochecker-$(echo ${FEATURE_BRANCH_NAME##*/} | tr -cd '[a-zA-Z0-9-]') \
+              --no-prompts
+          sam delete \
+              --stack-name lottochecker-fe-$(echo ${FEATURE_BRANCH_NAME##*/} | tr -cd '[a-zA-Z0-9-]') \
+              --no-prompts
 
   deploy-dev:
     if: github.ref == 'refs/heads/main' # || github.event_name == 'workflow_dispatch'
