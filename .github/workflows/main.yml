@@ -147,10 +147,10 @@ jobs:
       - name: Save CloudFormation outputs to file
         working-directory: frontend
         run: |
-          aws cloudformation describe-stacks --stack-name $STACK_NAME \
-              --query 'Stacks[0].Outputs[]' > cf_outputs.json
+          aws cloudformation describe-stacks --stack-name lottochecker-$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') \
+              --query 'Stacks[0].Outputs[]' > cf_outputs_backend.json
           aws cloudformation describe-stacks --stack-name lottochecker-fe-$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') \
-              --query 'Stacks[0].Outputs[]' >> cf_outputs.json
+              --query 'Stacks[0].Outputs[]' > cf_outputs_frontend.json
 
       - name: Build frontend for Dev
         env:
@@ -160,11 +160,12 @@ jobs:
         working-directory: frontend
         run: |
           echo "Parsing CloudFormation outputs to env vars..."
-          export VUE_APP_USER_POOL_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue' cf_outputs.json)
-          export VUE_APP_USER_POOL_WEB_CLIENT_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolWebClientId") | .OutputValue' cf_outputs.json)
-          export VUE_APP_API_URL=$(jq -r '.[] | select(.OutputKey=="HttpApi") | .OutputValue' cf_outputs.json)
-          export VUE_APP_AUTH_URL=$(jq -r '.[] | select(.OutputKey=="UserPoolAuthDomain") | .OutputValue' cf_outputs.json)
-          export VUE_APP_COGNITO_REGION=$(jq -r '.[] | select(.OutputKey=="UserPoolRegion") | .OutputValue' cf_outputs.json)
+          export OUTPUTS_FILE=cf_outputs_backend.json
+          export VUE_APP_USER_POOL_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue' $OUTPUTS_FILE)
+          export VUE_APP_USER_POOL_WEB_CLIENT_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolWebClientId") | .OutputValue' $OUTPUTS_FILE)
+          export VUE_APP_API_URL=$(jq -r '.[] | select(.OutputKey=="HttpApi") | .OutputValue' $OUTPUTS_FILE)
+          export VUE_APP_AUTH_URL=$(jq -r '.[] | select(.OutputKey=="UserPoolAuthDomain") | .OutputValue' $OUTPUTS_FILE)
+          export VUE_APP_COGNITO_REGION=$(jq -r '.[] | select(.OutputKey=="UserPoolRegion") | .OutputValue' $OUTPUTS_FILE)
           # Make sure all required vars are set.
           echo "VUE_APP_USER_POOL_ID: $VUE_APP_USER_POOL_ID"
           echo "VUE_APP_USER_POOL_WEB_CLIENT_ID: $VUE_APP_USER_POOL_WEB_CLIENT_ID"
@@ -176,16 +177,18 @@ jobs:
           #     exit 1
           # fi
           echo "Building frontend Vue app..."
-          npm run build:frontend -- --dest ../dist --modern
+          npm run build:frontend -- --modern
 
       - name: Deploy frontend
+        working-directory: frontend
         run: |
-          export BUCKET_NAME=$(jq -r '.[] | select(.OutputKey=="BucketName") | .OutputValue' cf_outputs.json) && echo "BUCKET_NAME: $BUCKET_NAME"
-          export DISTRIBUTION_ID=$(jq -r '.[] | select(.OutputKey=="DistributionId") | .OutputValue' cf_outputs.json) && echo "DISTRIBUTION_ID: $DISTRIBUTION_ID"
+          export OUTPUTS_FILE=cf_outputs_frontend.json
+          export BUCKET_NAME=$(jq -r '.[] | select(.OutputKey=="BucketName") | .OutputValue' $OUTPUTS_FILE) && echo "BUCKET_NAME: $BUCKET_NAME"
+          export DISTRIBUTION_ID=$(jq -r '.[] | select(.OutputKey=="DistributionId") | .OutputValue' $OUTPUTS_FILE) && echo "DISTRIBUTION_ID: $DISTRIBUTION_ID"
           aws s3 sync \
               --delete dist/ "s3://$BUCKET_NAME"
           aws cloudfront create-invalidation \
-              --distribution-id "DISTRIBUTION_ID" \
+              --distribution-id "$DISTRIBUTION_ID" \
               --paths "/*" \
 
   delete-feature:
