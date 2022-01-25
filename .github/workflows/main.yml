@@ -81,8 +81,44 @@ jobs:
             !frontend/node_modules/
           if-no-files-found: error
 
+  build-and-deploy-feature:
+    # this stage is triggered only for feature branches (feature*),
+    # which will build the stack and deploy to a stack named with branch name.
+    if: startsWith(github.ref, 'refs/heads/feature')
+    # needs: [test]
+    runs-on: ubuntu-latest
+    name: Build & Deploy Feature
+    environment: dev
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Build backend
+        working-directory: backend
+        run: sam build
+
+      - name: Assume the testing pipeline user role
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          # role-to-assume: ${{ env.TESTING_PIPELINE_EXECUTION_ROLE }}
+          # role-session-name: feature-deployment
+          # role-duration-seconds: 3600
+          # role-skip-session-tagging: true
+
+      - name: Deploy backend
+        working-directory: backend
+        run: |
+          sam deploy --stack-name lottochecker-$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') \
+              --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
+              --no-fail-on-empty-changeset \
+              --no-confirm-changeset \
+              --capabilities CAPABILITY_IAM \
+              --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }} AdminEmail=${{ secrets.ADMIN_EMAIL }}"
+
   deploy-dev:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.ref == 'refs/heads/main' # || github.event_name == 'workflow_dispatch'
     name: Deploy to Dev
     needs: build
     environment: dev
