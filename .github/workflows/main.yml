@@ -117,6 +117,34 @@ jobs:
               --capabilities CAPABILITY_IAM \
               --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }} AdminEmail=${{ secrets.ADMIN_EMAIL }}"
 
+  delete-feature:
+    if: startsWith(github.event.ref, 'feature') && github.event_name == 'delete'
+    needs: build-and-deploy-feature
+    runs-on: ubuntu-latest
+    name: Delete Feature
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Assume the testing pipeline user role
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          # role-to-assume: ${{ env.TESTING_PIPELINE_EXECUTION_ROLE }}
+          # role-session-name: feature-deployment
+          # role-duration-seconds: 3600
+          # role-skip-session-tagging: true
+
+      - name: Delete feature branch stack
+        env:
+          FEATURE_BRANCH_NAME: ${{ github.event.ref }}
+        working-directory: backend
+        run: |
+          sam delete \
+            --stack-name lottochecker-$(echo ${FEATURE_BRANCH_NAME##*/} | tr -cd '[a-zA-Z0-9-]') \
+            --no-prompts
+
   deploy-dev:
     if: github.ref == 'refs/heads/main' # || github.event_name == 'workflow_dispatch'
     name: Deploy to Dev
