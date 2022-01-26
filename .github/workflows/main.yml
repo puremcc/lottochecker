@@ -121,19 +121,10 @@ jobs:
               --no-confirm-changeset \
               --capabilities CAPABILITY_IAM \
 
-          # aws cloudformation describe-stacks --stack-name lottochecker-fe-$STACK_NAME_SUFFIX \
-          #     --query "Stacks[0].Outputs[].{name: OutputKey,value: OutputValue} | {variables: @}" \
-          #     > .github/variables/cf_outputs.json
-
-      - name: Save stack outputs
-        uses: ./.github/actions/save-stack-outputs
+      - name: Save frontend stack outputs
+        uses: puremcc/save-stack-outputs@main
         with:
           stack-name: lottochecker-fe-$STACK_NAME_SUFFIX
-
-      # - name: Store stack outputs to env
-      #   uses: deep-mm/set-variables@v1.0
-      #   with:
-      #     variableFileName: cf_outputs
 
       - name: Build backend
         working-directory: backend
@@ -149,17 +140,8 @@ jobs:
               --capabilities CAPABILITY_IAM \
               --parameter-overrides "AppHostUrl=$WebsiteUrl AdminEmail=${{ secrets.ADMIN_EMAIL }}"
 
-      #     aws cloudformation describe-stacks --stack-name lottochecker-$STACK_NAME_SUFFIX \
-      #         --query "Stacks[0].Outputs[].{name: OutputKey,value: OutputValue} | {variables: @}" \
-      #         > .github/variables/cf_outputs.json
-
-      # - name: Store stack outputs to env
-      #   uses: deep-mm/set-variables@v1.0
-      #   with:
-      #     variableFileName: cf_outputs
-
-      - name: Save stack outputs
-        uses: ./.github/actions/save-stack-outputs
+      - name: Save backend stack outputs
+        uses: puremcc/save-stack-outputs@main
         with:
           stack-name: lottochecker-$STACK_NAME_SUFFIX
 
