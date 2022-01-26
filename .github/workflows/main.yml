@@ -9,6 +9,7 @@ on:
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     name: Build
     runs-on: ubuntu-latest
     steps:
@@ -38,18 +39,36 @@ jobs:
         run: |
           sam package \
               --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
-              > template.yaml
+              --output-template-file backend-template.packaged.yaml
 
       - name: Upload backend artifact
         uses: actions/upload-artifact@v2
         with:
           name: backend-artifact
-          path: backend/template.yaml
+          path: backend/backend-template.packaged.yaml
           if-no-files-found: error
 
       #
       # Build and package frontend
       #
+      - name: Build frontend infra
+        working-directory: frontend
+        run: sam build
+
+      - name: Package frontend infra artifact
+        working-directory: frontend
+        run: |
+          sam package \
+              --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
+              --output-template-file frontend-template.packaged.yaml
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: frontend-infra-artifact
+          path: frontend/frontend-template.packaged.yaml
+          if-no-files-found: error
+
       - uses: actions/cache@v2
         with:
           path: ~/.npm
@@ -74,23 +93,21 @@ jobs:
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v2
         with:
-          name: frontend-artifact
+          name: frontend-website-artifact
           # path: frontend/dist/
           path: |
             frontend/
             !frontend/node_modules/
           if-no-files-found: error
 
-  build-and-deploy-feature:
+  deploy-feature:
     # this stage is triggered only for feature branches (feature*),
     # which will build the stack and deploy to a stack named with branch name.
     if: startsWith(github.ref, 'refs/heads/feature')
-    # needs: [test]
+    needs: [build]
     runs-on: ubuntu-latest
     name: Build & Deploy Feature
     environment: dev
-    # env:
-    #   STACK_NAME_SUFFIX: echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]'
     steps:
       - uses: actions/checkout@v2
 
@@ -108,14 +125,15 @@ jobs:
           # role-duration-seconds: 3600
           # role-skip-session-tagging: true
 
-      - name: Build frontend infra
-        working-directory: frontend
-        run: sam build
+      - name: Download frontend infra artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: frontend-infra-artifact
 
       - name: Deploy frontend infra
-        working-directory: frontend
         run: |
           sam deploy --stack-name lottochecker-fe-$STACK_NAME_SUFFIX \
+              --template frontend-template.packaged.yaml \
               --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
               --no-fail-on-empty-changeset \
               --no-confirm-changeset \
@@ -126,14 +144,15 @@ jobs:
         with:
           stack-name: lottochecker-fe-$STACK_NAME_SUFFIX
 
-      - name: Build backend
-        working-directory: backend
-        run: sam build
+      - name: Download backend artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: backend-artifact
 
       - name: Deploy backend
-        working-directory: backend
         run: |
           sam deploy --stack-name lottochecker-$STACK_NAME_SUFFIX \
+              --template backend-template.packaged.yaml \
               --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
               --no-fail-on-empty-changeset \
               --no-confirm-changeset \
@@ -145,7 +164,13 @@ jobs:
         with:
           stack-name: lottochecker-$STACK_NAME_SUFFIX
 
-      # Build & Deploy Feature Frontend
+      # Build & Deploy Feature Frontend website
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: frontend-website-artifact
+          path: frontend
+
       - uses: actions/cache@v2
         with:
           path: ~/.npm
@@ -153,11 +178,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Install frontend dependencies
+      - name: Install frontend website dependencies
         working-directory: frontend
         run: npm install
 
-      - name: Build frontend for Dev
+      - name: Build frontend website
         working-directory: frontend
         env:
           VUE_APP_USER_POOL_ID: ${{ env.UserPoolId }}
@@ -166,20 +191,10 @@ jobs:
           VUE_APP_AUTH_URL: ${{ env.UserPoolAuthDomain }}
           VUE_APP_COGNITO_REGION: ${{ env.UserPoolRegion }}
           VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ env.WebsiteUrl }}
-          VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ env.WebsiteUrl }}          
-        run: |
-          export VUE_APP_USER_POOL_ID=$UserPoolId
-          export VUE_APP_USER_POOL_WEB_CLIENT_ID=$UserPoolWebClientId
-          export VUE_APP_API_URL=$HttpApi
-          export VUE_APP_AUTH_URL=$UserPoolAuthDomain
-          export VUE_APP_COGNITO_REGION=$UserPoolRegion
-          export VUE_APP_OAUTH_REDIRECT_SIGNIN=$WebsiteUrl
-          export VUE_APP_OAUTH_REDIRECT_SIGNOUT=$WebsiteUrl
+          VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ env.WebsiteUrl }}
+        run: npm run build:frontend -- --modern
 
-          echo "Building frontend Vue app..."
-          npm run build:frontend -- --modern
-
-      - name: Deploy frontend
+      - name: Deploy frontend website
         working-directory: frontend
         run: |
           aws s3 sync --delete dist/ "s3://$BucketName"
@@ -187,7 +202,7 @@ jobs:
 
   delete-feature:
     if: startsWith(github.event.ref, 'feature') && github.event_name == 'delete'
-    needs: build-and-deploy-feature
+    needs: deploy-feature
     runs-on: ubuntu-latest
     name: Delete Feature
     steps:
@@ -248,16 +263,16 @@ jobs:
               --no-fail-on-empty-changeset \
               --no-confirm-changeset \
               --capabilities CAPABILITY_IAM \
-              --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }} AdminEmail=${{ secrets.ADMIN_EMAIL }}"
+              --parameter-overrides "AppHostUrl=$WebsiteUrl AdminEmail=${{ secrets.ADMIN_EMAIL }}"
 
       - name: Download frontend artifact
         uses: actions/download-artifact@v2
         with:
           name: frontend-artifact
-          # path: dist/
           path: frontend
 
-      - uses: actions/cache@v2
+      - name: Use cached dependencies if possible
+        uses: actions/cache@v2
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -268,40 +283,20 @@ jobs:
         working-directory: frontend
         run: npm install
 
-      - name: Save CloudFormation outputs to file
-        working-directory: frontend
-        run: aws cloudformation describe-stacks --stack-name $STACK_NAME --query 'Stacks[0].Outputs[]' > cf_outputs.json
-
       - name: Build frontend for Dev
-        env:
-          VUE_APP_HOST: ${{ secrets.APP_HOST_URL }}
-          VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ secrets.APP_HOST_URL }}
-          VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ secrets.APP_HOST_URL }}
         working-directory: frontend
-        run: |
-          echo "Parsing CloudFormation outputs to env vars..."
-          export VUE_APP_USER_POOL_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue' cf_outputs.json)
-          export VUE_APP_USER_POOL_WEB_CLIENT_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolWebClientId") | .OutputValue' cf_outputs.json)
-          export VUE_APP_API_URL=$(jq -r '.[] | select(.OutputKey=="HttpApi") | .OutputValue' cf_outputs.json | sed 's/{state}/'tx'/g' | sed 's/{game}/TexasLotto/g')
-          export VUE_APP_AUTH_URL=$(jq -r '.[] | select(.OutputKey=="UserPoolAuthDomain") | .OutputValue' cf_outputs.json)
-          export VUE_APP_COGNITO_REGION=$(jq -r '.[] | select(.OutputKey=="UserPoolRegion") | .OutputValue' cf_outputs.json)
-          # Make sure all required vars are set.
-          echo "VUE_APP_USER_POOL_ID: $VUE_APP_USER_POOL_ID"
-          echo "VUE_APP_USER_POOL_WEB_CLIENT_ID: $VUE_APP_USER_POOL_WEB_CLIENT_ID"
-          echo "VUE_APP_API_URL: $VUE_APP_API_URL"
-          echo "VUE_APP_AUTH_URL: $VUE_APP_AUTH_URL"
-          echo "VUE_APP_COGNITO_REGION: $VUE_APP_COGNITO_REGION"
-          # if [[ -z $VUE_APP_AWS_COGNITO_REGION || -z $VUE_APP_USER_POOL_ID || -z $VUE_APP_USER_POOL_WEB_CLIENT_ID || -z $VUE_APP_AUTH_URL || -z $VUE_APP_OAUTH_REDIRECT_SIGNIN || -z $VUE_APP_OAUTH_REDIRECT_SIGNOUT || -z $VUE_APP_API_URL ]]; then
-          #     echo "One or more required env variables is not defined."
-          #     exit 1
-          # fi
-          echo "Building frontend Vue app..."
-          npm run build:frontend -- --dest ../dist --modern
+        env:
+          VUE_APP_USER_POOL_ID: ${{ env.UserPoolId }}
+          VUE_APP_USER_POOL_WEB_CLIENT_ID: ${{ env.UserPoolWebClientId }}
+          VUE_APP_API_URL: ${{ env.HttpApi }}
+          VUE_APP_AUTH_URL: ${{ env.UserPoolAuthDomain }}
+          VUE_APP_COGNITO_REGION: ${{ env.UserPoolRegion }}
+          VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ env.WebsiteUrl }}
+          VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ env.WebsiteUrl }}
+        run: npm run build:frontend -- --modern
 
       - name: Deploy frontend
+        working-directory: frontend
         run: |
-          aws s3 sync \
-              --delete dist/ "s3://${{ secrets.BUCKET_NAME }}"
-          aws cloudfront create-invalidation \
-              --distribution-id "${{ secrets.DISTRIBUTION_ID }}" \
-              --paths "/*" \
+          aws s3 sync --delete dist/ "s3://$BucketName"
+          aws cloudfront create-invalidation --distribution-id "$DistributionId" --paths "/*"
