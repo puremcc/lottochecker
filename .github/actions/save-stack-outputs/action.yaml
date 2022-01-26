@@ -1,27 +1,29 @@
-name: 'Save stack outputs'
-description: 'Save CloudFormation stack outputs to env vars'
+name: Save stack outputs
+author: puremcc
+description: Save CloudFormation stack outputs to env vars
 inputs:
   stack-name:
-    description: 'Name of stack to save outputs from.'
+    description: Name of stack to save outputs from.
     required: true
-# outputs:
-#   random-number:
-#     description: "Random number"
-#     value: ${{ steps.random-number-generator.outputs.random-id }}
 runs:
   using: "composite"
   steps:
-    - run: |
-        aws cloudformation describe-stacks --stack-name lottochecker-fe-$STACK_NAME_SUFFIX \
-          --query "Stacks[0].Outputs[] \
-          > .cf_outputs.json
+    - name: Get outputs from stack
       shell: bash
-    - run: | 
+      run: |
+        aws cloudformation describe-stacks --stack-name ${{ inputs.stack-name }} \
+          --query "Stacks[0].Outputs[]" \
+          > /tmp/.cf_outputs.json
+
+    - name: Parse outputs to env vars
+      shell: bash
+      run: |
+        echo
+        echo Saving outputs from stack \'${{ inputs.stack-name }}\' to the following env vars:
         while read -r variable; do
           key=$(jq -r '.OutputKey' <<< $variable)
           value=$(jq -r '.OutputValue' <<< $variable)
           echo "$key=$value"
           echo "$key=$value" >> $GITHUB_ENV
-        done <<< $(jq -c '.[]' .cf_outputs.json)
-        rm .cf_outputs.json
-      shell: bash
+        done <<< $(jq -c '.[]' /tmp/.cf_outputs.json)
+        rm /tmp/.cf_outputs.json
