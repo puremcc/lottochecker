@@ -122,7 +122,7 @@ jobs:
               --capabilities CAPABILITY_IAM \
 
       - name: Save frontend stack outputs
-        uses: puremcc/save-stack-outputs@main
+        uses: puremcc/save-stack-outputs@v1
         with:
           stack-name: lottochecker-fe-$STACK_NAME_SUFFIX
 
@@ -141,7 +141,7 @@ jobs:
               --parameter-overrides "AppHostUrl=$WebsiteUrl AdminEmail=${{ secrets.ADMIN_EMAIL }}"
 
       - name: Save backend stack outputs
-        uses: puremcc/save-stack-outputs@main
+        uses: puremcc/save-stack-outputs@v1
         with:
           stack-name: lottochecker-$STACK_NAME_SUFFIX
 
@@ -157,36 +157,24 @@ jobs:
         working-directory: frontend
         run: npm install
 
-      - name: Save CloudFormation outputs to file
-        working-directory: frontend
-        run: |
-          aws cloudformation describe-stacks --stack-name lottochecker-$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') \
-              --query 'Stacks[0].Outputs[]' > cf_outputs_backend.json
-          aws cloudformation describe-stacks --stack-name lottochecker-fe-$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') \
-              --query 'Stacks[0].Outputs[]' > cf_outputs_frontend.json
-
       - name: Build frontend for Dev
         working-directory: frontend
+        env:
+          VUE_APP_USER_POOL_ID: ${{ env.UserPoolId }}
+          VUE_APP_USER_POOL_WEB_CLIENT_ID: ${{ env.UserPoolWebClientId }}
+          VUE_APP_API_URL: ${{ env.HttpApi }}
+          VUE_APP_AUTH_URL: ${{ env.UserPoolAuthDomain }}
+          VUE_APP_COGNITO_REGION: ${{ env.UserPoolRegion }}
+          VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ env.WebsiteUrl }}
+          VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ env.WebsiteUrl }}          
         run: |
-          echo "Parsing CloudFormation outputs to env vars..."
-          export OUTPUTS_FILE=cf_outputs_backend.json
-          export VUE_APP_USER_POOL_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue' $OUTPUTS_FILE)
-          export VUE_APP_USER_POOL_WEB_CLIENT_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolWebClientId") | .OutputValue' $OUTPUTS_FILE)
-          export VUE_APP_API_URL=$(jq -r '.[] | select(.OutputKey=="HttpApi") | .OutputValue' $OUTPUTS_FILE)
-          export VUE_APP_AUTH_URL=$(jq -r '.[] | select(.OutputKey=="UserPoolAuthDomain") | .OutputValue' $OUTPUTS_FILE)
-          export VUE_APP_COGNITO_REGION=$(jq -r '.[] | select(.OutputKey=="UserPoolRegion") | .OutputValue' $OUTPUTS_FILE)
-          export WEBSITE_URL=$(jq -r '.[] | select(.OutputKey=="WebsiteUrl") | .OutputValue' cf_outputs_frontend.json)
-          export VUE_APP_OAUTH_REDIRECT_SIGNIN=$WEBSITE_URL
-          export VUE_APP_OAUTH_REDIRECT_SIGNOUT=$WEBSITE_URL
-
-          # Make sure all required vars are set.
-          echo "VUE_APP_USER_POOL_ID: $VUE_APP_USER_POOL_ID"
-          echo "VUE_APP_USER_POOL_WEB_CLIENT_ID: $VUE_APP_USER_POOL_WEB_CLIENT_ID"
-          echo "VUE_APP_API_URL: $VUE_APP_API_URL"
-          echo "VUE_APP_AUTH_URL: $VUE_APP_AUTH_URL"
-          echo "VUE_APP_COGNITO_REGION: $VUE_APP_COGNITO_REGION"
-          echo "VUE_APP_OAUTH_REDIRECT_SIGNIN: $VUE_APP_OAUTH_REDIRECT_SIGNIN"
-          echo "VUE_APP_OAUTH_REDIRECT_SIGNOUT: $VUE_APP_OAUTH_REDIRECT_SIGNOUT"
+          export VUE_APP_USER_POOL_ID=$UserPoolId
+          export VUE_APP_USER_POOL_WEB_CLIENT_ID=$UserPoolWebClientId
+          export VUE_APP_API_URL=$HttpApi
+          export VUE_APP_AUTH_URL=$UserPoolAuthDomain
+          export VUE_APP_COGNITO_REGION=$UserPoolRegion
+          export VUE_APP_OAUTH_REDIRECT_SIGNIN=$WebsiteUrl
+          export VUE_APP_OAUTH_REDIRECT_SIGNOUT=$WebsiteUrl
 
           echo "Building frontend Vue app..."
           npm run build:frontend -- --modern
@@ -194,14 +182,8 @@ jobs:
       - name: Deploy frontend
         working-directory: frontend
         run: |
-          export OUTPUTS_FILE=cf_outputs_frontend.json
-          export BUCKET_NAME=$(jq -r '.[] | select(.OutputKey=="BucketName") | .OutputValue' $OUTPUTS_FILE) && echo "BUCKET_NAME: $BUCKET_NAME"
-          export DISTRIBUTION_ID=$(jq -r '.[] | select(.OutputKey=="DistributionId") | .OutputValue' $OUTPUTS_FILE) && echo "DISTRIBUTION_ID: $DISTRIBUTION_ID"
-          aws s3 sync \
-              --delete dist/ "s3://$BUCKET_NAME"
-          aws cloudfront create-invalidation \
-              --distribution-id "$DISTRIBUTION_ID" \
-              --paths "/*" \
+          aws s3 sync --delete dist/ "s3://$BucketName"
+          aws cloudfront create-invalidation --distribution-id "$DistributionId" --paths "/*"
 
   delete-feature:
     if: startsWith(github.event.ref, 'feature') && github.event_name == 'delete'
