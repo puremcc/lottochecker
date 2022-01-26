@@ -90,13 +90,12 @@ jobs:
     name: Build & Deploy Feature
     environment: dev
     env:
-      STACK_NAME_SUFFIX: $(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]')
+      STACK_NAME_SUFFIX: echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]'
     steps:
       - uses: actions/checkout@v2
 
-      - name: Build backend
-        working-directory: backend
-        run: sam build
+      - name: Set STACK_NAME_SUFFIX
+        run: echo STACK_NAME_SUFFIX=$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') >> $GITHUB_ENV
 
       - name: Assume the testing pipeline user role
         uses: aws-actions/configure-aws-credentials@v1
@@ -109,17 +108,6 @@ jobs:
           # role-duration-seconds: 3600
           # role-skip-session-tagging: true
 
-      - name: Deploy backend
-        working-directory: backend
-        run: |
-          sam deploy --stack-name lottochecker-$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') \
-              --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
-              --no-fail-on-empty-changeset \
-              --no-confirm-changeset \
-              --capabilities CAPABILITY_IAM \
-              --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }} AdminEmail=${{ secrets.ADMIN_EMAIL }}"
-
-      # Build & Deploy Feature Frontend
       - name: Build frontend infra
         working-directory: frontend
         run: sam build
@@ -127,12 +115,45 @@ jobs:
       - name: Deploy frontend infra
         working-directory: frontend
         run: |
-          sam deploy --stack-name lottochecker-fe-$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') \
+          sam deploy --stack-name lottochecker-fe-$STACK_NAME_SUFFIX \
               --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
               --no-fail-on-empty-changeset \
               --no-confirm-changeset \
               --capabilities CAPABILITY_IAM \
 
+          aws cloudformation describe-stacks --stack-name lottochecker-fe-$STACK_NAME_SUFFIX \
+              --query "Stacks[0].Outputs[].{name: OutputKey,value: OutputValue} | {variables: @}" \
+              > .github/variables/cf_outputs.json
+
+      - name: Store stack outputs to env
+        uses: deep-mm/set-variables@v1.0
+        with:
+          variableFileName: cf_outputs
+
+      - name: Build backend
+        working-directory: backend
+        run: sam build
+
+      - name: Deploy backend
+        working-directory: backend
+        run: |
+          sam deploy --stack-name lottochecker-$STACK_NAME_SUFFIX \
+              --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
+              --no-fail-on-empty-changeset \
+              --no-confirm-changeset \
+              --capabilities CAPABILITY_IAM \
+              --parameter-overrides "AppHostUrl=$WebsiteUrl AdminEmail=${{ secrets.ADMIN_EMAIL }}"
+
+          aws cloudformation describe-stacks --stack-name lottochecker-$STACK_NAME_SUFFIX \
+              --query "Stacks[0].Outputs[].{name: OutputKey,value: OutputValue} | {variables: @}" \
+              > .github/variables/cf_outputs.json
+
+      - name: Store stack outputs to env
+        uses: deep-mm/set-variables@v1.0
+        with:
+          variableFileName: cf_outputs
+
+      # Build & Deploy Feature Frontend
       - uses: actions/cache@v2
         with:
           path: ~/.npm
@@ -153,10 +174,6 @@ jobs:
               --query 'Stacks[0].Outputs[]' > cf_outputs_frontend.json
 
       - name: Build frontend for Dev
-        env:
-          VUE_APP_HOST: ${{ secrets.APP_HOST_URL }}
-          VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ secrets.APP_HOST_URL }}
-          VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ secrets.APP_HOST_URL }}
         working-directory: frontend
         run: |
           echo "Parsing CloudFormation outputs to env vars..."
@@ -166,16 +183,19 @@ jobs:
           export VUE_APP_API_URL=$(jq -r '.[] | select(.OutputKey=="HttpApi") | .OutputValue' $OUTPUTS_FILE)
           export VUE_APP_AUTH_URL=$(jq -r '.[] | select(.OutputKey=="UserPoolAuthDomain") | .OutputValue' $OUTPUTS_FILE)
           export VUE_APP_COGNITO_REGION=$(jq -r '.[] | select(.OutputKey=="UserPoolRegion") | .OutputValue' $OUTPUTS_FILE)
+          export WEBSITE_URL=$(jq -r '.[] | select(.OutputKey=="WebsiteUrl") | .OutputValue' cf_outputs_frontend.json)
+          export VUE_APP_OAUTH_REDIRECT_SIGNIN=$WEBSITE_URL
+          export VUE_APP_OAUTH_REDIRECT_SIGNOUT=$WEBSITE_URL
+
           # Make sure all required vars are set.
           echo "VUE_APP_USER_POOL_ID: $VUE_APP_USER_POOL_ID"
           echo "VUE_APP_USER_POOL_WEB_CLIENT_ID: $VUE_APP_USER_POOL_WEB_CLIENT_ID"
           echo "VUE_APP_API_URL: $VUE_APP_API_URL"
           echo "VUE_APP_AUTH_URL: $VUE_APP_AUTH_URL"
           echo "VUE_APP_COGNITO_REGION: $VUE_APP_COGNITO_REGION"
-          # if [[ -z $VUE_APP_AWS_COGNITO_REGION || -z $VUE_APP_USER_POOL_ID || -z $VUE_APP_USER_POOL_WEB_CLIENT_ID || -z $VUE_APP_AUTH_URL || -z $VUE_APP_OAUTH_REDIRECT_SIGNIN || -z $VUE_APP_OAUTH_REDIRECT_SIGNOUT || -z $VUE_APP_API_URL ]]; then
-          #     echo "One or more required env variables is not defined."
-          #     exit 1
-          # fi
+          echo "VUE_APP_OAUTH_REDIRECT_SIGNIN: $VUE_APP_OAUTH_REDIRECT_SIGNIN"
+          echo "VUE_APP_OAUTH_REDIRECT_SIGNOUT: $VUE_APP_OAUTH_REDIRECT_SIGNOUT"
+
           echo "Building frontend Vue app..."
           npm run build:frontend -- --modern
 

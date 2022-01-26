@@ -54,3 +54,6 @@ Outputs:
     Value: !Ref FrontendHostingBucket
   DistributionId:
     Value: !Ref CloudFrontDistribution
+  WebsiteUrl:
+    Description: Web address to Cloudfront distribution.
+    Value: !Sub https://${CloudFrontDistribution.DomainName}
