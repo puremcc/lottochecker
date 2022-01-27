@@ -1,6 +1,6 @@
 # LottoChecker
 
-A useless tool for checking your Lotto numbers.
+LottoChecker checks your Lotto numbers.
 
 ## High-Level Architecture
 
