@@ -2,23 +2,23 @@ name: LottoChecker CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature**']
+  delete:
+    branches: ['feature**']
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 jobs:
   build:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    # if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/feature') || github.event_name == 'workflow_dispatch'
     name: Build & Package
     runs-on: ubuntu-latest
     steps:
       - run: echo ${{ github.event_name }}
       - uses: actions/checkout@v2
 
-      #
       # Build and package backend
-      #
       - name: Build backend
         working-directory: backend
         run: sam build
@@ -29,10 +29,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-          # role-to-assume: ${{ secrets.PIPELINE_EXECUTION_ROLE }}
-          # role-session-name: dev-deployment
-          # role-duration-seconds: 3600
-          # role-skip-session-tagging: true
 
       - name: Package backend artifact
         working-directory: backend
@@ -48,9 +44,7 @@ jobs:
           path: backend/backend-template.packaged.yaml
           if-no-files-found: error
 
-      #
       # Build and package frontend
-      #
       - name: Build frontend infra
         working-directory: frontend
         run: sam build
@@ -94,7 +88,6 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: frontend-website-artifact
-          # path: frontend/dist/
           path: |
             frontend/
             !frontend/node_modules/
@@ -105,8 +98,6 @@ jobs:
     name: Deploy to Dev
     needs: build
     environment: dev
-    env:
-      STACK_NAME: lottochecker-dev
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
@@ -115,18 +106,32 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-          # role-to-assume: ${{ env.PIPELINE_EXECUTION_ROLE }}
-          # role-session-name: testing-deployment
-          # role-duration-seconds: 3600
-          # role-skip-session-tagging: true
 
-      - uses: ./.github/actions/deploy
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+      - name: Deploy to Dev
+        uses: ./.github/actions/deploy
         with:
-          stack-name-suffix: ${{ env.STACK_NAME_SUFFIX }}
+          stack-name-suffix: dev
+          artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
+          admin-email: ${{ secrets.ADMIN_EMAIL }}
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    name: Deploy to Prod
+    needs: deploy-dev
+    environment: prod
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to Prod
+        uses: ./.github/actions/deploy
+        with:
+          stack-name-suffix: prod
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
           admin-email: ${{ secrets.ADMIN_EMAIL }}
 
@@ -151,11 +156,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - uses: ./.github/actions/deploy
-        # env:
-        #   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        #   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        #   AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+      - name: Deploy to feature environment
+        uses: ./.github/actions/deploy
         with:
           stack-name-suffix: ${{ env.STACK_NAME_SUFFIX }}
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
