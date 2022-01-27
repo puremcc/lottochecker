@@ -1,0 +1,86 @@
+name: Build & Package LottoChecker
+description: Build & Package LottoChecker.
+inputs:
+  artifacts-bucket:
+    description: SAM
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - run: echo ${{ github.event_name }}
+      shell: bash
+      
+    - uses: actions/checkout@v2
+
+    # Build and package backend
+    - name: Build backend
+      shell: bash
+      working-directory: backend
+      run: sam build
+
+    - name: Package backend artifact
+      shell: bash
+      working-directory: backend
+      run: |
+        sam package \
+            --s3-bucket ${{ input.artifacts-bucket }} \
+            --output-template-file backend-template.packaged.yaml
+
+    - name: Upload backend artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: backend-artifact
+        path: backend/backend-template.packaged.yaml
+        if-no-files-found: error
+
+    # Build and package frontend
+    - name: Build frontend infra
+      shell: bash
+      working-directory: frontend
+      run: sam build
+
+    - name: Package frontend infra artifact
+      shell: bash
+      working-directory: frontend
+      run: |
+        sam package \
+            --s3-bucket ${{ input.artifacts-bucket }} \
+            --output-template-file frontend-template.packaged.yaml
+
+    - name: Upload frontend artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: frontend-infra-artifact
+        path: frontend/frontend-template.packaged.yaml
+        if-no-files-found: error
+
+    - uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    # - name: Install frontend dependencies
+    #   working-directory: frontend
+    #   run: npm install
+
+    - name: Lint frontend
+      shell: bash
+      working-directory: frontend
+      run: |
+        npm install @vue/cli-service
+        npm run lint
+
+    # - name: Build frontend
+    #   working-directory: frontend
+    #   run: npm run build:frontend
+
+    - name: Upload frontend artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: frontend-website-artifact
+        path: |
+          frontend/
+          !frontend/node_modules/
+        if-no-files-found: error

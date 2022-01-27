@@ -1,0 +1,81 @@
+name: Feature Development
+
+on:
+  push:
+    branches: ["feature**"]
+  delete:
+    branches: ["feature**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Build & Package artifacts
+        uses: ./.github/actions/build
+
+  deploy-feature:
+    # this stage is triggered only for feature branches (feature*),
+    # which will build the stack and deploy to a stack named with branch name.
+    if: startsWith(github.ref, 'refs/heads/feature')
+    needs: [build]
+    runs-on: ubuntu-latest
+    name: Deploy to Feature
+    environment: dev
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set STACK_NAME_SUFFIX
+        run: echo STACK_NAME_SUFFIX=$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') >> $GITHUB_ENV
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to feature environment
+        uses: ./.github/actions/deploy
+        with:
+          stack-name-suffix: ${{ env.STACK_NAME_SUFFIX }}
+          artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
+          admin-email: ${{ secrets.ADMIN_EMAIL }}
+
+  delete-feature:
+    if: startsWith(github.event.ref, 'feature') && github.event_name == 'delete'
+    needs: deploy-feature
+    runs-on: ubuntu-latest
+    name: Delete Feature
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Assume the testing pipeline user role
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          # role-to-assume: ${{ env.TESTING_PIPELINE_EXECUTION_ROLE }}
+          # role-session-name: feature-deployment
+          # role-duration-seconds: 3600
+          # role-skip-session-tagging: true
+
+      - name: Delete feature branch stack
+        env:
+          FEATURE_BRANCH_NAME: ${{ github.event.ref }}
+        working-directory: backend
+        run: |
+          sam delete \
+              --stack-name lottochecker-$(echo ${FEATURE_BRANCH_NAME##*/} | tr -cd '[a-zA-Z0-9-]') \
+              --no-prompts
+          sam delete \
+              --stack-name lottochecker-fe-$(echo ${FEATURE_BRANCH_NAME##*/} | tr -cd '[a-zA-Z0-9-]') \
+              --no-prompts
