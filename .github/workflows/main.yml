@@ -120,55 +120,15 @@ jobs:
           # role-duration-seconds: 3600
           # role-skip-session-tagging: true
 
-      - name: Download backend artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: backend-artifact
-
-      - name: Deploy backend
-        run: |
-          sam deploy --stack-name "$STACK_NAME" \
-              --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
-              --no-fail-on-empty-changeset \
-              --no-confirm-changeset \
-              --capabilities CAPABILITY_IAM \
-              --parameter-overrides "AppHostUrl=$WebsiteUrl AdminEmail=${{ secrets.ADMIN_EMAIL }}"
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: frontend-artifact
-          path: frontend
-
-      - name: Use cached dependencies if possible
-        uses: actions/cache@v2
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm install
-
-      - name: Build frontend for Dev
-        working-directory: frontend
+      - uses: ./.github/actions/deploy
         env:
-          VUE_APP_USER_POOL_ID: ${{ env.UserPoolId }}
-          VUE_APP_USER_POOL_WEB_CLIENT_ID: ${{ env.UserPoolWebClientId }}
-          VUE_APP_API_URL: ${{ env.HttpApi }}
-          VUE_APP_AUTH_URL: ${{ env.UserPoolAuthDomain }}
-          VUE_APP_COGNITO_REGION: ${{ env.UserPoolRegion }}
-          VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ env.WebsiteUrl }}
-          VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ env.WebsiteUrl }}
-        run: npm run build:frontend -- --modern
-
-      - name: Deploy frontend
-        working-directory: frontend
-        run: |
-          aws s3 sync --delete dist/ "s3://$BucketName"
-          aws cloudfront create-invalidation --distribution-id "$DistributionId" --paths "/*"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+        with:
+          stack-name-suffix: ${{ env.STACK_NAME_SUFFIX }}
+          artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
+          admin-email: ${{ secrets.ADMIN_EMAIL }}
 
   deploy-feature:
     # this stage is triggered only for feature branches (feature*),
@@ -184,101 +144,22 @@ jobs:
       - name: Set STACK_NAME_SUFFIX
         run: echo STACK_NAME_SUFFIX=$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') >> $GITHUB_ENV
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - uses: ./.github/actions/deploy
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+        # env:
+        #   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        #   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        #   AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
         with:
           stack-name-suffix: ${{ env.STACK_NAME_SUFFIX }}
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
           admin-email: ${{ secrets.ADMIN_EMAIL }}
-
-      # - name: Assume the testing pipeline user role
-      #   uses: aws-actions/configure-aws-credentials@v1
-      #   with:
-      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws-region: ${{ secrets.AWS_REGION }}
-      #     # role-to-assume: ${{ env.TESTING_PIPELINE_EXECUTION_ROLE }}
-      #     # role-session-name: feature-deployment
-      #     # role-duration-seconds: 3600
-      #     # role-skip-session-tagging: true
-
-      # - name: Download frontend infra artifact
-      #   uses: actions/download-artifact@v2
-      #   with:
-      #     name: frontend-infra-artifact
-
-      # - name: Deploy frontend infra
-      #   run: |
-      #     sam deploy --stack-name lottochecker-fe-$STACK_NAME_SUFFIX \
-      #         --template frontend-template.packaged.yaml \
-      #         --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
-      #         --no-fail-on-empty-changeset \
-      #         --no-confirm-changeset \
-      #         --capabilities CAPABILITY_IAM \
-
-      # - name: Save frontend stack outputs
-      #   uses: puremcc/save-stack-outputs@v1
-      #   with:
-      #     stack-name: lottochecker-fe-$STACK_NAME_SUFFIX
-
-      # - name: Download backend artifact
-      #   uses: actions/download-artifact@v2
-      #   with:
-      #     name: backend-artifact
-
-      # - name: Deploy backend
-      #   run: |
-      #     sam deploy --stack-name lottochecker-$STACK_NAME_SUFFIX \
-      #         --template backend-template.packaged.yaml \
-      #         --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
-      #         --no-fail-on-empty-changeset \
-      #         --no-confirm-changeset \
-      #         --capabilities CAPABILITY_IAM \
-      #         --parameter-overrides "AppHostUrl=$WebsiteUrl AdminEmail=${{ secrets.ADMIN_EMAIL }}"
-
-      # - name: Save backend stack outputs
-      #   uses: puremcc/save-stack-outputs@v1
-      #   with:
-      #     stack-name: lottochecker-$STACK_NAME_SUFFIX
-
-      # # Build & Deploy Feature Frontend website
-      # - name: Download frontend artifact
-      #   uses: actions/download-artifact@v2
-      #   with:
-      #     name: frontend-website-artifact
-      #     path: frontend
-
-      # - uses: actions/cache@v2
-      #   with:
-      #     path: ~/.npm
-      #     key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-node-
-
-      # - name: Install frontend website dependencies
-      #   working-directory: frontend
-      #   run: npm install
-
-      # - name: Build frontend website
-      #   working-directory: frontend
-      #   env:
-      #     VUE_APP_USER_POOL_ID: ${{ env.UserPoolId }}
-      #     VUE_APP_USER_POOL_WEB_CLIENT_ID: ${{ env.UserPoolWebClientId }}
-      #     VUE_APP_API_URL: ${{ env.HttpApi }}
-      #     VUE_APP_AUTH_URL: ${{ env.UserPoolAuthDomain }}
-      #     VUE_APP_COGNITO_REGION: ${{ env.UserPoolRegion }}
-      #     VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ env.WebsiteUrl }}
-      #     VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ env.WebsiteUrl }}
-      #   run: npm run build:frontend -- --modern
-
-      # - name: Deploy frontend website
-      #   working-directory: frontend
-      #   run: |
-      #     aws s3 sync --delete dist/ "s3://$BucketName"
-      #     aws cloudfront create-invalidation --distribution-id "$DistributionId" --paths "/*"
 
   delete-feature:
     if: startsWith(github.event.ref, 'feature') && github.event_name == 'delete'
