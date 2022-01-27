@@ -10,8 +10,6 @@ runs:
     - run: echo ${{ github.event_name }}
       shell: bash
       
-    - uses: actions/checkout@v2
-
     # Build and package backend
     - name: Build backend
       shell: bash
@@ -23,7 +21,7 @@ runs:
       working-directory: backend
       run: |
         sam package \
-            --s3-bucket ${{ input.artifacts-bucket }} \
+            --s3-bucket ${{ inputs.artifacts-bucket }} \
             --output-template-file backend-template.packaged.yaml
 
     - name: Upload backend artifact
@@ -44,7 +42,7 @@ runs:
       working-directory: frontend
       run: |
         sam package \
-            --s3-bucket ${{ input.artifacts-bucket }} \
+            --s3-bucket ${{ inputs.artifacts-bucket }} \
             --output-template-file frontend-template.packaged.yaml
 
     - name: Upload frontend artifact
