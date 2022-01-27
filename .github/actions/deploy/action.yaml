@@ -1,0 +1,94 @@
+name: Deploy LottoChecker
+description: Deploy LottoChecker.
+inputs:
+  stack-name-suffix:
+    description: Name of stack to deploy.
+    required: true
+  artifact-bucket:
+    description: SAM
+    required: true
+  admin-email:
+    description: ''
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Download frontend infra artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: frontend-infra-artifact
+
+    - name: Deploy frontend infra
+      shell: bash
+      run: |
+        sam deploy --stack-name lottochecker-fe-${{ inputs.stack-name-suffix }} \
+            --template frontend-template.packaged.yaml \
+            --s3-bucket ${{ inputs.artifact-bucket }} \
+            --no-fail-on-empty-changeset \
+            --no-confirm-changeset \
+            --capabilities CAPABILITY_IAM \
+
+    - name: Save frontend stack outputs
+      uses: puremcc/save-stack-outputs@v1
+      with:
+        stack-name: lottochecker-fe-${{ inputs.stack-name-suffix }}
+
+    - name: Download backend artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: backend-artifact
+
+    - name: Deploy backend
+      shell: bash
+      run: |
+        sam deploy --stack-name lottochecker-${{ inputs.stack-name-suffix }} \
+            --template backend-template.packaged.yaml \
+            --s3-bucket ${{ inputs.artifact-bucket }} \
+            --no-fail-on-empty-changeset \
+            --no-confirm-changeset \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides "AppHostUrl=$WebsiteUrl AdminEmail=${{ inputs.admin-email }}"
+
+    - name: Save backend stack outputs
+      uses: puremcc/save-stack-outputs@v1
+      with:
+        stack-name: lottochecker-${{ inputs.stack-name-suffix }}
+
+    # Build & Deploy Feature Frontend website
+    - name: Download frontend artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: frontend-website-artifact
+        path: frontend
+
+    - uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Install frontend website dependencies
+      working-directory: frontend
+      shell: bash
+      run: npm install
+
+    - name: Build frontend website
+      working-directory: frontend
+      shell: bash
+      env:
+        VUE_APP_USER_POOL_ID: ${{ env.UserPoolId }}
+        VUE_APP_USER_POOL_WEB_CLIENT_ID: ${{ env.UserPoolWebClientId }}
+        VUE_APP_API_URL: ${{ env.HttpApi }}
+        VUE_APP_AUTH_URL: ${{ env.UserPoolAuthDomain }}
+        VUE_APP_COGNITO_REGION: ${{ env.UserPoolRegion }}
+        VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ env.WebsiteUrl }}
+        VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ env.WebsiteUrl }}
+      run: npm run build:frontend -- --modern
+
+    - name: Deploy frontend website
+      working-directory: frontend
+      shell: bash
+      run: |
+        aws s3 sync --delete dist/ "s3://$BucketName"
+        aws cloudfront create-invalidation --distribution-id "$DistributionId" --paths "/*"

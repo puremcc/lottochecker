@@ -9,85 +9,26 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: Build & Package
     runs-on: ubuntu-latest
     steps:
-      - run: echo ${{ github.event_name }}
       - uses: actions/checkout@v2
-
-      #
-      # Build and package backend
-      #
-      - name: Build backend
-        working-directory: backend
-        run: sam build
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+      - uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-          # role-to-assume: ${{ secrets.PIPELINE_EXECUTION_ROLE }}
-          # role-session-name: dev-deployment
-          # role-duration-seconds: 3600
-          # role-skip-session-tagging: true
 
-      - name: Package backend artifact
-        working-directory: backend
-        run: |
-          sam package \
-              --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
-              > template.yaml
-
-      - name: Upload backend artifact
-        uses: actions/upload-artifact@v2
+      - name: Build & Package artifacts
+        uses: ./.github/actions/build
         with:
-          name: backend-artifact
-          path: backend/template.yaml
-          if-no-files-found: error
-
-      #
-      # Build and package frontend
-      #
-      - uses: actions/cache@v2
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      # - name: Install frontend dependencies
-      #   working-directory: frontend
-      #   run: npm install
-
-      - name: Lint frontend
-        working-directory: frontend
-        run: |
-          npm install @vue/cli-service
-          npm run lint
-
-      # - name: Build frontend
-      #   working-directory: frontend
-      #   run: npm run build:frontend
-
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: frontend-artifact
-          # path: frontend/dist/
-          path: |
-            frontend/
-            !frontend/node_modules/
-          if-no-files-found: error
+          artifacts-bucket: ${{ secrets.ARTIFACT_BUCKET }}
 
   deploy-dev:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push'
     name: Deploy to Dev
     needs: build
     environment: dev
-    env:
-      STACK_NAME: lottochecker-dev
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
@@ -96,77 +37,31 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-          # role-to-assume: ${{ env.PIPELINE_EXECUTION_ROLE }}
-          # role-session-name: testing-deployment
-          # role-duration-seconds: 3600
-          # role-skip-session-tagging: true
 
-      - name: Download backend artifact
-        uses: actions/download-artifact@v2
+      - name: Deploy to Dev
+        uses: ./.github/actions/deploy
         with:
-          name: backend-artifact
+          stack-name-suffix: dev
+          artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
+          admin-email: ${{ secrets.ADMIN_EMAIL }}
 
-      - name: Deploy backend
-        run: |
-          sam deploy --stack-name "$STACK_NAME" \
-              --s3-bucket ${{ secrets.ARTIFACT_BUCKET }} \
-              --no-fail-on-empty-changeset \
-              --no-confirm-changeset \
-              --capabilities CAPABILITY_IAM \
-              --parameter-overrides "AppHostUrl=${{ secrets.APP_HOST_URL }} AdminEmail=${{ secrets.ADMIN_EMAIL }}"
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v2
+  deploy-prod:
+    if: github.event_name == 'push'
+    name: Deploy to Prod
+    needs: deploy-dev
+    environment: prod
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          name: frontend-artifact
-          # path: dist/
-          path: frontend
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - uses: actions/cache@v2
+      - name: Deploy to Prod
+        uses: ./.github/actions/deploy
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm install
-
-      - name: Save CloudFormation outputs to file
-        working-directory: frontend
-        run: aws cloudformation describe-stacks --stack-name $STACK_NAME --query 'Stacks[0].Outputs[]' > cf_outputs.json
-
-      - name: Build frontend for Dev
-        env:
-          VUE_APP_HOST: ${{ secrets.APP_HOST_URL }}
-          VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ secrets.APP_HOST_URL }}
-          VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ secrets.APP_HOST_URL }}
-        working-directory: frontend
-        run: |
-          echo "Parsing CloudFormation outputs to env vars..."
-          export VUE_APP_USER_POOL_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue' cf_outputs.json)
-          export VUE_APP_USER_POOL_WEB_CLIENT_ID=$(jq -r '.[] | select(.OutputKey=="UserPoolWebClientId") | .OutputValue' cf_outputs.json)
-          export VUE_APP_API_URL=$(jq -r '.[] | select(.OutputKey=="HttpApi") | .OutputValue' cf_outputs.json | sed 's/{state}/'tx'/g' | sed 's/{game}/TexasLotto/g')
-          export VUE_APP_AUTH_URL=$(jq -r '.[] | select(.OutputKey=="UserPoolAuthDomain") | .OutputValue' cf_outputs.json)
-          export VUE_APP_COGNITO_REGION=$(jq -r '.[] | select(.OutputKey=="UserPoolRegion") | .OutputValue' cf_outputs.json)
-          # Make sure all required vars are set.
-          echo "VUE_APP_USER_POOL_ID: $VUE_APP_USER_POOL_ID"
-          echo "VUE_APP_USER_POOL_WEB_CLIENT_ID: $VUE_APP_USER_POOL_WEB_CLIENT_ID"
-          echo "VUE_APP_API_URL: $VUE_APP_API_URL"
-          echo "VUE_APP_AUTH_URL: $VUE_APP_AUTH_URL"
-          echo "VUE_APP_COGNITO_REGION: $VUE_APP_COGNITO_REGION"
-          # if [[ -z $VUE_APP_AWS_COGNITO_REGION || -z $VUE_APP_USER_POOL_ID || -z $VUE_APP_USER_POOL_WEB_CLIENT_ID || -z $VUE_APP_AUTH_URL || -z $VUE_APP_OAUTH_REDIRECT_SIGNIN || -z $VUE_APP_OAUTH_REDIRECT_SIGNOUT || -z $VUE_APP_API_URL ]]; then
-          #     echo "One or more required env variables is not defined."
-          #     exit 1
-          # fi
-          echo "Building frontend Vue app..."
-          npm run build:frontend -- --dest ../dist --modern
-
-      - name: Deploy frontend
-        run: |
-          aws s3 sync \
-              --delete dist/ "s3://${{ secrets.BUCKET_NAME }}"
-          aws cloudfront create-invalidation \
-              --distribution-id "${{ secrets.DISTRIBUTION_ID }}" \
-              --paths "/*" \
+          stack-name-suffix: prod
+          artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
+          admin-email: ${{ secrets.ADMIN_EMAIL }}

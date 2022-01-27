@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  LottoChecker Frontend
+
+Resources:
+  FrontendHostingBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub ${AWS::StackName}-website
+      # WebsiteConfiguration:
+      #   IndexDocument: index.html
+
+  FrontendHostingBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendHostingBucket
+      PolicyDocument:
+        Statement:
+          Effect: Allow
+          Action: s3:GetObject
+          Principal: 
+            # CanonicalUser: !GetAtt CloudFrontOAI.S3CanonicalUserId
+            AWS: !Sub arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${CloudFrontOAI}
+          # Resource: !GetAtt FrontendHostingBucket.Arn
+          Resource: !Sub arn:aws:s3:::${FrontendHostingBucket}/*
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        DefaultCacheBehavior:
+          TargetOriginId: !Sub S3-${FrontendHostingBucket}
+          ViewerProtocolPolicy: https-only
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+        Origins:
+          - S3OriginConfig:
+              OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${CloudFrontOAI}
+            DomainName: !GetAtt FrontendHostingBucket.RegionalDomainName
+            Id: !Sub S3-${FrontendHostingBucket}
+
+  CloudFrontOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Ref FrontendHostingBucket
+
+Outputs:
+  BucketName:
+    Value: !Ref FrontendHostingBucket
+  DistributionId:
+    Value: !Ref CloudFrontDistribution
+  WebsiteUrl:
+    Description: Web address to Cloudfront distribution.
+    Value: !Sub https://${CloudFrontDistribution.DomainName}
