@@ -50,10 +50,10 @@ Resources:
         Comment: !Ref FrontendHostingBucket
 
 Outputs:
-  BucketName:
+  WebsiteBucketName:
     Value: !Ref FrontendHostingBucket
   DistributionId:
     Value: !Ref CloudFrontDistribution
-  WebsiteUrl:
+  WebsiteCdnUrl:
     Description: Web address to Cloudfront distribution.
     Value: !Sub https://${CloudFrontDistribution.DomainName}

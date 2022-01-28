@@ -82,13 +82,13 @@ runs:
         VUE_APP_API_URL: ${{ env.HttpApi }}
         VUE_APP_AUTH_URL: ${{ env.UserPoolAuthDomain }}
         VUE_APP_COGNITO_REGION: ${{ env.UserPoolRegion }}
-        VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ env.WebsiteUrl }}
-        VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ env.WebsiteUrl }}
+        VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ env.WebsiteCdnUrl }}
+        VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ env.WebsiteCdnUrl }}
       run: npm run build:frontend -- --modern
 
     - name: Deploy frontend website
       working-directory: frontend
       shell: bash
       run: |
-        aws s3 sync --delete dist/ "s3://$BucketName"
+        aws s3 sync --delete dist/ "s3://$WebsiteBucketName"
         aws cloudfront create-invalidation --distribution-id "$DistributionId" --paths "/*"
