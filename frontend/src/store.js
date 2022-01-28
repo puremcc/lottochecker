@@ -96,7 +96,6 @@ export const store = new Vuex.Store({
 
       // Generate ticket results.
       const ticketResults = context.state.tickets.map((ticket) => {
-        console.log("[store.getters.results]:", ticket);
         ticket.dates = `${ticket.startDate} – ${ticket.endDate}`;
         ticket.results = utils.getResults(ticket, context.state.winningNumbers);
         ticket.playsRemaining = ticket.results.filter(

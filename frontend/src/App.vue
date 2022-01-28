@@ -35,12 +35,14 @@
             />
           </v-col>
         </v-row>
+        <config />
       </v-container>
     </v-main>
   </v-app>
 </template>
 
 <script>
+import Config from "./components/Config.vue";
 import UserAuth from "./components/UserAuth";
 import EnterTicket from "./components/EnterTicket.vue";
 import ListTickets from "./components/ListTickets.vue";
@@ -51,6 +53,7 @@ import { mapGetters, mapActions } from "vuex";
 export default {
   name: "app",
   components: {
+    Config,
     UserAuth,
     EnterTicket,
     ListTickets,

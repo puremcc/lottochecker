@@ -38,8 +38,7 @@ jobs:
       - name: Set STACK_NAME_SUFFIX
         run: echo STACK_NAME_SUFFIX=$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]') >> $GITHUB_ENV
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
+      - uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -58,16 +57,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Delete Feature
     steps:
-      - name: Assume the testing pipeline user role
-        uses: aws-actions/configure-aws-credentials@v1
+      - uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-          # role-to-assume: ${{ env.TESTING_PIPELINE_EXECUTION_ROLE }}
-          # role-session-name: feature-deployment
-          # role-duration-seconds: 3600
-          # role-skip-session-tagging: true
 
       - name: Delete feature branch stack
         env:
