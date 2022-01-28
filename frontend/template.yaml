@@ -7,6 +7,9 @@ Parameters:
   WebsiteUrl:
     Type: String
     Description: Optional alternate domain for accessing the site.
+  AcmCertificateArn:
+    Type: String
+    Description: ARN of the SSL certificate to use for the Website URL. Required if WebsiteUrl was provided.
 
 Conditions:
   HasWebsiteUrl: !Not [!Equals [!Ref WebsiteUrl, ""]]
@@ -38,6 +41,12 @@ Resources:
         DefaultRootObject: index.html
         Aliases:
           - !If [HasWebsiteUrl, !Ref WebsiteUrl, !Ref "AWS::NoValue"]
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: false
+          AcmCertificateArn:
+            !If [HasWebsiteUrl, !Ref AcmCertificateArn, !Ref "AWS::NoValue"]
+          MinimumProtocolVersion: TLSv1
+          SslSupportMethod: sni-only
         DefaultCacheBehavior:
           TargetOriginId: !Sub S3-${FrontendHostingBucket}
           ViewerProtocolPolicy: https-only
