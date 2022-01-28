@@ -82,8 +82,8 @@ runs:
         VUE_APP_API_URL: ${{ env.HttpApi }}
         VUE_APP_AUTH_URL: ${{ env.UserPoolAuthDomain }}
         VUE_APP_COGNITO_REGION: ${{ env.UserPoolRegion }}
-        VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ env.WebsiteCdnUrl }}
-        VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ env.WebsiteCdnUrl }}
+        VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ secrets.WebsiteUrl || env.WebsiteCdnUrl }}
+        VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ secrets.WebsiteUrl || env.WebsiteCdnUrl }}
       run: npm run build:frontend -- --modern
 
     - name: Deploy frontend website
