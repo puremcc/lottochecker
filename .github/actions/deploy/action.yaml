@@ -41,7 +41,7 @@ runs:
     - name: Save frontend stack outputs
       uses: puremcc/save-stack-outputs@v1
       with:
-        stack-name: lottochecker-fe-${{ inputs.stack-name-suffix }}
+        stack-name: lottochecker-${{ inputs.stack-name-suffix }}-frontend
 
     - name: Download backend artifact
       uses: actions/download-artifact@v2

@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-feature:
     name: Build & Package
     runs-on: ubuntu-latest
     steps:
@@ -28,7 +28,7 @@ jobs:
     # this stage is triggered only for feature branches (feature*),
     # which will build the stack and deploy to a stack named with branch name.
     if: startsWith(github.ref, 'refs/heads/feature')
-    needs: [build]
+    needs: [build-feature]
     runs-on: ubuntu-latest
     name: Deploy to Feature
     environment: feature
@@ -38,7 +38,9 @@ jobs:
       - name: Set STACK_NAME_SUFFIX
         run: |
           BRANCH_NAME=$(${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]')
-          echo STACK_NAME_SUFFIX=feat-$(cksum <<< $BRANCH_NAME | cut -f 1) >> $GITHUB_ENV
+          HASH=cksum <<< $BRANCH_NAME | cut -f 1 -d ' '
+          echo STACK_NAME_SUFFIX=feat$HASH >> $GITHUB_ENV
+          echo "  STACK_NAME_SUFFIX: $STACK_NAME_SUFFIX"
 
       - uses: aws-actions/configure-aws-credentials@v1
         with:
