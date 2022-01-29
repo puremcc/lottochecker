@@ -30,7 +30,7 @@ runs:
     - name: Deploy frontend infra
       shell: bash
       run: |
-        sam deploy --stack-name lottochecker-fe-${{ inputs.stack-name-suffix }} \
+        sam deploy --stack-name lottochecker-${{ inputs.stack-name-suffix }}-frontend \
             --template frontend-template.packaged.yaml \
             --s3-bucket ${{ inputs.artifact-bucket }} \
             --no-fail-on-empty-changeset \

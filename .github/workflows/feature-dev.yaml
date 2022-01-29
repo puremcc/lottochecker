@@ -73,5 +73,5 @@ jobs:
               --stack-name lottochecker-$STACK_NAME_SUFFIX \
               --no-prompts
           sam delete \
-              --stack-name lottochecker-fe-$STACK_NAME_SUFFIX \
+              --stack-name lottochecker-$STACK_NAME_SUFFIX-frontend \
               --no-prompts
