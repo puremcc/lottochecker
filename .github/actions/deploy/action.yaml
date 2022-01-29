@@ -8,8 +8,17 @@ inputs:
     description: SAM
     required: true
   admin-email:
-    description: ''
+    description: For admin account initial password email.
     required: true
+  website-url:
+    description: 'Optional custom URL for website. If empty then CloudFront URL will be used.'
+    required: false
+    default: ''
+  acm-certificate-arn:
+    description: 'Conditional. If custom URL provided, then must provide ACM certifacte to use.'
+    required: false
+    default: ''
+
 runs:
   using: "composite"
   steps:
@@ -27,6 +36,7 @@ runs:
             --no-fail-on-empty-changeset \
             --no-confirm-changeset \
             --capabilities CAPABILITY_IAM \
+            --parameter-overrides "WebsiteUrl='${{ inputs.website-url }}' AcmCertificateArn='${{ inputs.acm-certificate-arn }}'"
 
     - name: Save frontend stack outputs
       uses: puremcc/save-stack-outputs@v1
@@ -41,7 +51,7 @@ runs:
     - name: Deploy backend
       shell: bash
       env:
-        WEBSITE_URL: ${{ secrets.WEBSITE_URL || env.WebsiteCdnUrl }}
+        WEBSITE_URL: ${{ inputs.website-url || env.WebsiteCdnUrl }}
       run: |
         sam deploy --stack-name lottochecker-${{ inputs.stack-name-suffix }} \
             --template backend-template.packaged.yaml \
@@ -84,8 +94,8 @@ runs:
         VUE_APP_API_URL: ${{ env.HttpApi }}
         VUE_APP_AUTH_URL: ${{ env.UserPoolAuthDomain }}
         VUE_APP_COGNITO_REGION: ${{ env.UserPoolRegion }}
-        VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ secrets.WEBSITE_URL || env.WebsiteCdnUrl }}
-        VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ secrets.WEBSITE_URL || env.WebsiteCdnUrl }}
+        VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ inputs.website-url || env.WebsiteCdnUrl }}
+        VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ inputs.website-url || env.WebsiteCdnUrl }}
       run: npm run build:frontend -- --modern
 
     - name: Deploy frontend website

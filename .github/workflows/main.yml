@@ -44,6 +44,7 @@ jobs:
           stack-name-suffix: dev
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
           admin-email: ${{ secrets.ADMIN_EMAIL }}
+          website-url: ${{ secrets.WEBSITE_URL }}
 
   deploy-prod:
     if: github.event_name == 'push'
@@ -65,3 +66,4 @@ jobs:
           stack-name-suffix: prod
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
           admin-email: ${{ secrets.ADMIN_EMAIL }}
+          website-url: ${{ secrets.WEBSITE_URL }}
