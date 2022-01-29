@@ -36,7 +36,9 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set STACK_NAME_SUFFIX
-        run: echo STACK_NAME_SUFFIX=$(date "+%Y%m%d-%H%M%S") >> $GITHUB_ENV
+        run: |
+          BRANCH_NAME=$(${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]')
+          echo STACK_NAME_SUFFIX=feat-$(cksum <<< $BRANCH_NAME | cut -f 1) >> $GITHUB_ENV
 
       - uses: aws-actions/configure-aws-credentials@v1
         with:
