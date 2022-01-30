@@ -2,9 +2,9 @@ name: Feature Development
 
 on:
   push:
-    branches: ["feature**"]
+    branches: ["feature**", "bugfix**"]
   delete:
-    branches: ["feature**"]
+    branches: ["feature**", "bugfix**"]
   workflow_dispatch:
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
   deploy-feature:
     # this stage is triggered only for feature branches (feature*),
     # which will build the stack and deploy to a stack named with branch name.
-    if: startsWith(github.ref, 'refs/heads/feature')
+    # if: startsWith(github.ref, 'refs/heads/feature')
     needs: [build-feature]
     runs-on: ubuntu-latest
     name: Deploy to Feature
@@ -37,10 +37,18 @@ jobs:
 
       - name: Set STACK_NAME_SUFFIX
         run: |
-          BRANCH_NAME=$(${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]')
-          HASH=cksum <<< $BRANCH_NAME | cut -f 1 -d ' '
-          echo STACK_NAME_SUFFIX=feat$HASH >> $GITHUB_ENV
-          echo "  STACK_NAME_SUFFIX: $STACK_NAME_SUFFIX"
+          if [ ${{ startsWith(github.ref, 'refs/heads/feature') }} ]; then
+            BRANCH_TYPE=feature
+          elif [ ${{ startsWith(github.ref, 'refs/heads/bugfix') }} ]; then
+            BRANCH_TYPE=bugfix
+          fi
+          BRANCH_NAME=$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]')
+          HASH=$(cksum <<< $BRANCH_NAME | cut -f 1 -d ' ')
+          echo "STACK_NAME_SUFFIX=${BRANCH_TYPE}${HASH}" >> $GITHUB_ENV
+          # if [ -z $STACK_NAME_SUFFIX ]; then exit 1; fi
+          echo "  BRANCH_TYPE: $BRANCH_TYPE"
+          echo "  BRANCH_NAME: $BRANCH_NAME"
+          echo "  STACK_NAME_SUFFIX: ${{ env.STACK_NAME_SUFFIX }}"
 
       - uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -50,15 +58,18 @@ jobs:
 
       - name: Deploy to feature environment
         uses: ./.github/actions/deploy
+        env:
+          WEBSITE_DOMAIN: ${{ env.STACK_NAME_SUFFIX }}.${{ secrets.WEBSITE_DOMAIN }}
         with:
           stack-name-suffix: ${{ env.STACK_NAME_SUFFIX }}
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
           admin-email: ${{ secrets.ADMIN_EMAIL }}
-          website-domain: ${{ secrets.WEBSITE_URL }}
+          website-domain: ${{ env.WEBSITE_DOMAIN }}
           acm-certificate-arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
 
   delete-feature:
-    if: startsWith(github.event.ref, 'feature') && github.event_name == 'delete'
+    # if: startsWith(github.event.ref, 'feature') && github.event_name == 'delete'
+    if: github.event_name == 'delete'
     needs: deploy-feature
     runs-on: ubuntu-latest
     name: Delete Feature
