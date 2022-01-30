@@ -45,6 +45,7 @@ jobs:
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
           admin-email: ${{ secrets.ADMIN_EMAIL }}
           website-url: ${{ secrets.WEBSITE_URL }}
+          acm-certificate-arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
 
   deploy-prod:
     if: github.event_name == 'push'
@@ -67,3 +68,4 @@ jobs:
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
           admin-email: ${{ secrets.ADMIN_EMAIL }}
           website-url: ${{ secrets.WEBSITE_URL }}
+          acm-certificate-arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
