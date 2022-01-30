@@ -10,8 +10,8 @@ inputs:
   admin-email:
     description: For admin account initial password email.
     required: true
-  website-url:
-    description: 'Optional custom URL for website. If empty then CloudFront URL will be used.'
+  website-domain:
+    description: 'Optional custom domain for website. If empty then CloudFront URL will be used.'
     required: false
     default: ''
   acm-certificate-arn:
@@ -29,6 +29,8 @@ runs:
 
     - name: Deploy frontend infra
       shell: bash
+      env:
+        WEBSITE_URL: "https://${{ inputs.stack-name-suffix }}.${{ inputs.website-domain }}"
       run: |
         sam deploy --stack-name lottochecker-${{ inputs.stack-name-suffix }}-frontend \
             --template frontend-template.packaged.yaml \
@@ -36,7 +38,7 @@ runs:
             --no-fail-on-empty-changeset \
             --no-confirm-changeset \
             --capabilities CAPABILITY_IAM \
-            --parameter-overrides "WebsiteUrl='${{ inputs.website-url }}' AcmCertificateArn='${{ inputs.acm-certificate-arn }}'"
+            --parameter-overrides "WebsiteUrl=$WEBSITE_URL AcmCertificateArn='${{ inputs.acm-certificate-arn }}'"
 
     - name: Save frontend stack outputs
       uses: puremcc/save-stack-outputs@v1

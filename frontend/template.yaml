@@ -14,7 +14,13 @@ Parameters:
     Default: ""
 
 Conditions:
-  HasWebsiteUrl: !Not [!Equals [!Ref WebsiteUrl, ""]]
+  # If WebsiteUrl is provided, i.e. a custom domain name, then it will be defined as an alias domain
+  # to the CloudFront distribution. If WebsiteUrl is provided, then a corresponding AcmCertificateArn
+  # must also be provided.
+  HasWebsiteUrl:
+    !Not [
+      !Or [!Equals [!Ref WebsiteUrl, ""], !Equals [!Ref AcmCertificateArn, ""]],
+    ]
 
 Resources:
   FrontendHostingBucket:
