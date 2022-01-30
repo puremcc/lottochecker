@@ -8,8 +8,17 @@ inputs:
     description: SAM
     required: true
   admin-email:
-    description: ''
+    description: For admin account initial password email.
     required: true
+  website-url:
+    description: 'Optional custom URL for website. If empty then CloudFront URL will be used.'
+    required: false
+    default: ''
+  acm-certificate-arn:
+    description: 'Conditional. If custom URL provided, then must provide ACM certifacte to use.'
+    required: false
+    default: ''
+
 runs:
   using: "composite"
   steps:
@@ -21,17 +30,18 @@ runs:
     - name: Deploy frontend infra
       shell: bash
       run: |
-        sam deploy --stack-name lottochecker-fe-${{ inputs.stack-name-suffix }} \
+        sam deploy --stack-name lottochecker-${{ inputs.stack-name-suffix }}-frontend \
             --template frontend-template.packaged.yaml \
             --s3-bucket ${{ inputs.artifact-bucket }} \
             --no-fail-on-empty-changeset \
             --no-confirm-changeset \
             --capabilities CAPABILITY_IAM \
+            --parameter-overrides "WebsiteUrl='${{ inputs.website-url }}' AcmCertificateArn='${{ inputs.acm-certificate-arn }}'"
 
     - name: Save frontend stack outputs
       uses: puremcc/save-stack-outputs@v1
       with:
-        stack-name: lottochecker-fe-${{ inputs.stack-name-suffix }}
+        stack-name: lottochecker-${{ inputs.stack-name-suffix }}-frontend
 
     - name: Download backend artifact
       uses: actions/download-artifact@v2
@@ -40,6 +50,8 @@ runs:
 
     - name: Deploy backend
       shell: bash
+      env:
+        WEBSITE_URL: ${{ inputs.website-url || env.WebsiteCdnUrl }}
       run: |
         sam deploy --stack-name lottochecker-${{ inputs.stack-name-suffix }} \
             --template backend-template.packaged.yaml \
@@ -47,7 +59,7 @@ runs:
             --no-fail-on-empty-changeset \
             --no-confirm-changeset \
             --capabilities CAPABILITY_IAM \
-            --parameter-overrides "AppHostUrl=$WebsiteUrl AdminEmail=${{ inputs.admin-email }}"
+            --parameter-overrides "AppHostUrl=$WEBSITE_URL AdminEmail=${{ inputs.admin-email }}"
 
     - name: Save backend stack outputs
       uses: puremcc/save-stack-outputs@v1
@@ -82,13 +94,13 @@ runs:
         VUE_APP_API_URL: ${{ env.HttpApi }}
         VUE_APP_AUTH_URL: ${{ env.UserPoolAuthDomain }}
         VUE_APP_COGNITO_REGION: ${{ env.UserPoolRegion }}
-        VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ env.WebsiteUrl }}
-        VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ env.WebsiteUrl }}
+        VUE_APP_OAUTH_REDIRECT_SIGNIN: ${{ inputs.website-url || env.WebsiteCdnUrl }}
+        VUE_APP_OAUTH_REDIRECT_SIGNOUT: ${{ inputs.website-url || env.WebsiteCdnUrl }}
       run: npm run build:frontend -- --modern
 
     - name: Deploy frontend website
       working-directory: frontend
       shell: bash
       run: |
-        aws s3 sync --delete dist/ "s3://$BucketName"
+        aws s3 sync --delete dist/ "s3://$WebsiteBucketName"
         aws cloudfront create-invalidation --distribution-id "$DistributionId" --paths "/*"

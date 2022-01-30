@@ -3,14 +3,25 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   LottoChecker Frontend
 
+Parameters:
+  WebsiteUrl:
+    Type: String
+    Description: Optional alternate domain for accessing the site.
+    Default: ""
+  AcmCertificateArn:
+    Type: String
+    Description: ARN of the SSL certificate to use for the Website URL. Required if WebsiteUrl was provided.
+    Default: ""
+
+Conditions:
+  HasWebsiteUrl: !Not [!Equals [!Ref WebsiteUrl, ""]]
+
 Resources:
   FrontendHostingBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
       BucketName: !Sub ${AWS::StackName}-website
-      # WebsiteConfiguration:
-      #   IndexDocument: index.html
 
   FrontendHostingBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -20,10 +31,8 @@ Resources:
         Statement:
           Effect: Allow
           Action: s3:GetObject
-          Principal: 
-            # CanonicalUser: !GetAtt CloudFrontOAI.S3CanonicalUserId
+          Principal:
             AWS: !Sub arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${CloudFrontOAI}
-          # Resource: !GetAtt FrontendHostingBucket.Arn
           Resource: !Sub arn:aws:s3:::${FrontendHostingBucket}/*
 
   CloudFrontDistribution:
@@ -32,11 +41,20 @@ Resources:
       DistributionConfig:
         Enabled: true
         DefaultRootObject: index.html
+        Aliases:
+          - !If [HasWebsiteUrl, !Ref WebsiteUrl, !Ref "AWS::NoValue"]
+        ViewerCertificate:
+          # CloudFrontDefaultCertificate: !Not [HasWebsiteUrl]
+          CloudFrontDefaultCertificate: !If [HasWebsiteUrl, false, true]
+          AcmCertificateArn:
+            !If [HasWebsiteUrl, !Ref AcmCertificateArn, !Ref "AWS::NoValue"]
+          MinimumProtocolVersion: TLSv1
+          SslSupportMethod: !If [HasWebsiteUrl, sni-only, !Ref "AWS::NoValue"]
         DefaultCacheBehavior:
           TargetOriginId: !Sub S3-${FrontendHostingBucket}
           ViewerProtocolPolicy: https-only
           Compress: true
-          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
         Origins:
           - S3OriginConfig:
               OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${CloudFrontOAI}
@@ -50,10 +68,10 @@ Resources:
         Comment: !Ref FrontendHostingBucket
 
 Outputs:
-  BucketName:
+  WebsiteBucketName:
     Value: !Ref FrontendHostingBucket
   DistributionId:
     Value: !Ref CloudFrontDistribution
-  WebsiteUrl:
+  WebsiteCdnUrl:
     Description: Web address to Cloudfront distribution.
     Value: !Sub https://${CloudFrontDistribution.DomainName}
