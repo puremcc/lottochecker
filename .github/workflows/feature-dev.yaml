@@ -37,18 +37,20 @@ jobs:
 
       - name: Set STACK_NAME_SUFFIX
         run: |
-          if [ ${{ startsWith(github.ref, 'refs/heads/feature') }} ]; then
+          if [[ $GITHUB_REF == refs/heads/feature/* ]]; then
             BRANCH_TYPE=feature
-          elif [ ${{ startsWith(github.ref, 'refs/heads/bugfix') }} ]; then
+          elif [[ $GITHUB_REF == refs/heads/bugfix/* ]]; then
             BRANCH_TYPE=bugfix
           fi
-          BRANCH_NAME=$(echo ${GITHUB_REF##*/} | tr -cd '[a-zA-Z0-9-]')
-          HASH=$(cksum <<< $BRANCH_NAME | cut -f 1 -d ' ')
-          echo "STACK_NAME_SUFFIX=${BRANCH_TYPE}${HASH}" >> $GITHUB_ENV
-          # if [ -z $STACK_NAME_SUFFIX ]; then exit 1; fi
+          HASH=$(cksum <<< $GITHUB_REF_NAME | cut -f 1 -d ' ')
+          STACK_NAME_SUFFIX=${BRANCH_TYPE}${HASH}
+          if [ -z $STACK_NAME_SUFFIX ]; then 
+            echo "STACK_NAME_SUFFIX did not get set."
+            exit 1; 
+          fi
+          echo "STACK_NAME_SUFFIX=$STACK_NAME_SUFFIX" >> $GITHUB_ENV
           echo "  BRANCH_TYPE: $BRANCH_TYPE"
-          echo "  BRANCH_NAME: $BRANCH_NAME"
-          echo "  STACK_NAME_SUFFIX: ${{ env.STACK_NAME_SUFFIX }}"
+          echo "  STACK_NAME_SUFFIX: $STACK_NAME_SUFFIX"
 
       - uses: aws-actions/configure-aws-credentials@v1
         with:

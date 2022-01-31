@@ -51,7 +51,7 @@ Resources:
           - !If [HasAlternateDomain, !Ref AlternateDomain, !Ref "AWS::NoValue"]
         ViewerCertificate: !If
           - HasAlternateDomain
-          - AcmCertificateArn: AcmCertificateArn
+          - AcmCertificateArn: !Ref AcmCertificateArn
             MinimumProtocolVersion: TLSv1
             SslSupportMethod: sni-only
           - CloudFrontDefaultCertificate: true
