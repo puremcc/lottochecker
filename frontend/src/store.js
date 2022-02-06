@@ -1,8 +1,8 @@
 import Vue from "vue";
 import Vuex from "vuex";
-import utils from "./utils";
 import lotteryResults from "./models/lotteryResults";
 import { Ticket } from "./models/tickets";
+import utils from "./utils";
 
 import Amplify, { Auth } from "aws-amplify";
 import awsconfig from "./aws-exports";
@@ -66,10 +66,30 @@ export const store = new Vuex.Store({
     },
     async loadWinningNumbers(context, payload) {
       console.log("loadWinningNumbers...");
+      var fromDate;
+      var toDate;
+      // Determine data range of winningNumbers to retrieve based on min/max of ticket dates.
+      if (payload && "fromDate" in payload) {
+        fromDate = payload.fromDate;
+      } else {
+        // Get earliest ticket startDate.
+        let fromDates = context.state.tickets.map((_) => _.startDate);
+        fromDates.sort((a, b) => a > b);
+        fromDate = fromDates[0];
+      }
+      if (payload && "toDate" in payload) {
+        toDate = payload.toDate;
+      } else {
+        // Get latest ticket endDate.
+        let toDates = context.state.tickets.map((_) => _.startDate);
+        toDates.sort((a, b) => a < b);
+        toDate = toDates[0];
+      }
+
       const winningNumbers = await lotteryResults.getWinningNumbers(
         context.state.accessToken,
-        payload.fromDate,
-        payload.toDate
+        fromDate,
+        toDate
       );
       context.commit("setWinningNumbers", winningNumbers);
     },
@@ -77,41 +97,6 @@ export const store = new Vuex.Store({
       let ticketService = new Ticket(context.state.accessToken);
       let tickets = await ticketService.listTickets();
       context.commit("setTickets", tickets);
-    },
-    async loadTicketResults(context) {
-      await context.dispatch("loadTickets");
-
-      // Determine data range of winningNumbers to retrieve based on min/max of ticket dates.
-      // Get earliest ticket startDate.
-      let fromDates = context.state.tickets.map((_) => _.startDate);
-      fromDates.sort((a, b) => a > b);
-      let fromDate = fromDates[0];
-
-      // Get latest ticket endDate.
-      let toDates = context.state.tickets.map((_) => _.startDate);
-      toDates.sort((a, b) => a < b);
-      let toDate = toDates[0];
-
-      await context.dispatch("loadWinningNumbers", { fromDate, toDate });
-
-      // Generate ticket results.
-      const ticketResults = context.state.tickets.map((ticket) => {
-        console.log("[store.getters.results]:", ticket);
-        ticket.dates = `${ticket.startDate} – ${ticket.endDate}`;
-        ticket.results = utils.getResults(ticket, context.state.winningNumbers);
-        ticket.playsRemaining = ticket.results.filter(
-          (result) => !result.winningNumbers
-        ).length;
-        ticket.picks.map((pick) => {
-          pick.numbers = pick.numbers.join(", ");
-          return pick;
-        });
-        ticket.prize = ticket.results
-          .map((result) => result.prize)
-          .reduce((a, b) => a + b, 0);
-        return ticket;
-      });
-      context.commit("setTicketResults", ticketResults);
     },
     async saveTicket(context, payload) {
       let ticketModel = new Ticket(context.state.accessToken);
@@ -136,7 +121,21 @@ export const store = new Vuex.Store({
       return state.tickets;
     },
     results(state) {
-      return state.ticketResults;
+      var results = [];
+      results = state.tickets.map((ticket) => {
+        let _results = utils.getResults(ticket, state.winningNumbers)
+        return {
+          dates: `${ticket.startDate} – ${ticket.endDate}`,
+          results: _results,
+          playsRemaining: _results.filter((_) => !_.winningNumbers)
+            .length,
+          picks: ticket.picks,
+          prize: _results
+            .map((result) => result.prize)
+            .reduce((a, b) => a + b, 0),
+        };
+      });
+      return results;
     },
   },
 });

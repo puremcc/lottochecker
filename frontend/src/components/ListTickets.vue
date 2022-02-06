@@ -30,7 +30,7 @@
       :headers="myTicketsHeaders"
       :items="myTicketsItems"
       :items-per-page="3"
-      sort-by="startDate"
+      sort-by="dates"
       sort-desc
       v-model="selectedTicket"
       single-select
@@ -55,7 +55,7 @@ export default {
   components: { BaseError },
   props: {
     isDataLoading: Boolean,
-    getColor: Function
+    getColor: Function,
   },
   emits: ["addNewTicket", "selected-ticket"],
   data() {
@@ -74,9 +74,15 @@ export default {
     // Formatted for display in My Tickets data table.
     myTicketsItems() {
       return this.$store.getters.results.map((ticket, index) => {
-        ticket.id = index;
-        ticket.prize = "$" + ticket.prize;
-        return ticket;
+        return {
+          id: index,
+          dates: ticket.dates,
+          playsRemaining: ticket.playsRemaining,
+          prize: "$" + ticket.prize,
+          picks: ticket.picks.map((pick) => {
+            return { numbers: pick.numbers.join(", ") };
+          }),
+        };
       });
     },
   },

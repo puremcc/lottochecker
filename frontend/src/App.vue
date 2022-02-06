@@ -3,6 +3,8 @@
     <v-app-bar app>
       <h2>Lotto Checker</h2>
       <v-spacer></v-spacer>
+      <router-link :to="'/tickets/active'">Active Tickets</router-link>
+      <v-spacer></v-spacer>
       <user-auth />
     </v-app-bar>
     <v-main v-if="isLoggedIn">
@@ -62,7 +64,8 @@ export default {
       await this.loadAuthState();
       if (this.isLoggedIn) {
         this.isDataLoading = true;
-        await this.loadTicketResults();
+        await this.loadTickets();
+        await this.loadWinningNumbers();
         this.isDataLoading = false;
       }
     } catch (error) {
@@ -83,7 +86,7 @@ export default {
     ...mapGetters(["winningNumbers", "isLoggedIn"]),
   },
   methods: {
-    ...mapActions(["loadAuthState", "loadTicketResults"]),
+    ...mapActions(["loadAuthState", "loadTickets", "loadWinningNumbers"]),
     async onNewTicketSaved() {
       this.showEnterNewTicket = false;
     },
