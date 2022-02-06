@@ -1,6 +1,30 @@
 import { DateTime } from "luxon";
 
 export default {
+  getResults(ticket, winningNumbers) {
+    const prizes = [0, 0, 0, 3, 56, 2000, 10e6];
+    const playerPicks = this.expandTicket(
+      ticket.startDate,
+      ticket.endDate,
+      ticket.picks[0].numbers
+    );
+    return playerPicks.map((pick) => {
+      // Lookup winning numbers for this pick.
+      let _winningNumbers = winningNumbers.find(
+        (drawing) => drawing.drawingDate === pick.drawingDate
+      );
+      // Check for matches between player pick numbers and winning numbers.
+      let matches = this.findMatches(pick, _winningNumbers);
+      return {
+        drawingDate: pick.drawingDate,
+        numbers: pick.numbers,
+        winningNumbers: _winningNumbers,
+        matches,
+        prize: prizes[matches.length],
+      };
+    });
+  },
+
   expandTicket(sStartDate, sEndDate, numbers) {
     const picks = [];
     let drawingDate = DateTime.fromISO(sStartDate, { zone: "America/Chicago" });
@@ -17,42 +41,13 @@ export default {
     return picks;
   },
 
-  getResults(ticket, winningNumbers) {
-    const prizes = [0, 0, 0, 3, 56, 2000, 10e6];
-    const playerPicks = this.expandTicket(
-      ticket.startDate,
-      ticket.endDate,
-      ticket.picks[0].numbers
-    );
-    const ticketResults = new Array(playerPicks.length);
-    playerPicks.forEach((playerPick) => {
-      let thisResult = {
-        drawingDate: playerPick.drawingDate,
-        numbers: playerPick.numbers,
-        winningNumbers: null,
-        matches: null,
-        prize: null,
-      };
-      thisResult.winningNumbers = winningNumbers.find(
-        (drawing) => drawing.drawingDate === playerPick.drawingDate
-      );
-      if (thisResult.winningNumbers) {
-        thisResult.matches = this.findMatches(
-          playerPick,
-          thisResult.winningNumbers
+  findMatches(playerPick, winningPick) {
+    return !winningPick
+      ? []
+      : playerPick.numbers.filter(
+          (playerNum) =>
+            !!winningPick.numbers.find((winningNum) => winningNum === playerNum)
         );
-        thisResult.prize = prizes[thisResult.matches.length];
-      }
-      ticketResults.push(thisResult);
-    });
-    return ticketResults;
-  },
-
-  findMatches(playerPick, winingPick) {
-    return playerPick.numbers.filter(
-      (playerNum) =>
-        !!winingPick.numbers.find((winningNum) => winningNum === playerNum)
-    );
   },
 
   isValidDrawingDate(drawingDate) {

@@ -17,7 +17,6 @@ export const store = new Vuex.Store({
       accessToken: null,
       winningNumbers: [],
       tickets: [],
-      ticketResults: [],
     };
   },
   mutations: {
@@ -123,12 +122,11 @@ export const store = new Vuex.Store({
     results(state) {
       var results = [];
       results = state.tickets.map((ticket) => {
-        let _results = utils.getResults(ticket, state.winningNumbers)
+        let _results = utils.getResults(ticket, state.winningNumbers);
         return {
           dates: `${ticket.startDate} – ${ticket.endDate}`,
           results: _results,
-          playsRemaining: _results.filter((_) => !_.winningNumbers)
-            .length,
+          playsRemaining: _results.filter((_) => !_.winningNumbers).length,
           picks: ticket.picks,
           prize: _results
             .map((result) => result.prize)
