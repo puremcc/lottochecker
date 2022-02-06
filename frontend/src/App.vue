@@ -10,33 +10,7 @@
     <v-main v-if="isLoggedIn">
       <v-container>
         <base-error :error="error" />
-        <v-row>
-          <v-col>
-            <enter-ticket
-              v-if="showEnterNewTicket"
-              @saved="onNewTicketSaved"
-              @canceled="onNewTicketCanceled"
-            /> </v-col
-        ></v-row>
-        <v-row>
-          <v-col>
-            <list-tickets
-              :isDataLoading="isDataLoading"
-              :get-color="getColor"
-              @selected-ticket="onTicketSelected"
-              @add-new-ticket="showEnterNewTicket = true" /></v-col
-        ></v-row>
-        <v-row>
-          <v-col>
-            <ticket-details
-              :ticket="selectedTicket"
-              v-if="!!selectedTicket && !isDataLoading"
-              :isDataLoading="isDataLoading"
-              :get-color="getColor"
-              @close-ticket-details="selectedTicket = null"
-            />
-          </v-col>
-        </v-row>
+        <router-view></router-view>
       </v-container>
     </v-main>
   </v-app>
@@ -44,9 +18,6 @@
 
 <script>
 import UserAuth from "./components/UserAuth";
-import EnterTicket from "./components/EnterTicket.vue";
-import ListTickets from "./components/ListTickets.vue";
-import TicketDetails from "./components/TicketDetails";
 import BaseError from "./components/BaseError.vue";
 import { mapGetters, mapActions } from "vuex";
 
@@ -54,9 +25,6 @@ export default {
   name: "app",
   components: {
     UserAuth,
-    EnterTicket,
-    ListTickets,
-    TicketDetails,
     BaseError,
   },
   async created() {

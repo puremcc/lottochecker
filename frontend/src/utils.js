@@ -62,4 +62,10 @@ export default {
     const split = isoDateString.split("-");
     return `${+split[1]}/${+split[2]}/${+split[0]}`;
   },
+
+  getColor(winnings) {
+    let _winnings = +winnings.substring(1);
+    if (_winnings > 0 && _winnings < 1000) return "yellow";
+    if (_winnings >= 1000) return "green";
+  },
 };

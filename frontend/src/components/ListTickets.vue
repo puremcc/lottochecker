@@ -50,12 +50,13 @@
 </template>
 <script>
 import BaseError from "./BaseError.vue";
+import utils from "../utils";
 
 export default {
   components: { BaseError },
   props: {
     isDataLoading: Boolean,
-    getColor: Function,
+    // getColor: Function,
   },
   emits: ["addNewTicket", "selected-ticket"],
   data() {
@@ -89,6 +90,9 @@ export default {
   methods: {
     onItemSelected($event) {
       this.$emit("selected-ticket", $event.item);
+    },
+    getColor(prize) {
+      return utils.getColor(prize);
     },
   },
 };

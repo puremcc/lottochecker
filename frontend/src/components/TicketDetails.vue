@@ -38,7 +38,6 @@ export default {
   },
   props: {
     ticket: Object,
-    getColor: Function,
     isDataLoading: Boolean,
   },
   data() {
@@ -64,6 +63,9 @@ export default {
   methods: {
     isoStringToLocaleString(isoDateString) {
       return utils.isoStringToLocaleString(isoDateString);
+    },
+    getColor(prize) {
+      return utils.getColor(prize);
     },
   },
 };
