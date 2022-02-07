@@ -3,8 +3,6 @@
     <v-app-bar app>
       <h2>Lotto Checker</h2>
       <v-spacer></v-spacer>
-      <router-link :to="'/tickets/active'">Active Tickets</router-link>
-      <v-spacer></v-spacer>
       <user-auth />
     </v-app-bar>
     <v-main v-if="isLoggedIn">

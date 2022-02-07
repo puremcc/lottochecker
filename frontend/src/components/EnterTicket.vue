@@ -15,82 +15,6 @@
             <input id="end-date" type="date" v-model="ticket.endDate" />
           </v-col>
           <v-spacer />
-          <!-- Start date -->
-          <!-- <v-col cols="12" sm="6" md="4">
-                <v-dialog
-                  ref="dialog"
-                  v-model="modal"
-                  :return-value.sync="ticket.startDate"
-                  persistent
-                  width="290px"
-                >
-                  <template v-slot:activator="{ on, attrs }">
-                    <v-text-field
-                      v-model="ticket.startDate"
-                      label="Start date"
-                      prepend-icon="mdi-calendar"
-                      readonly
-                      v-bind="attrs"
-                      v-on="on"
-                    ></v-text-field>
-                  </template>
-                  <v-date-picker
-                    v-model="ticket.startDate"
-                    :allowed-dates="allowedDates"
-                    scrollable
-                  >
-                    <v-spacer></v-spacer>
-                    <v-btn text color="primary" @click="modal = false">
-                      Cancel
-                    </v-btn>
-                    <v-btn
-                      text
-                      color="primary"
-                      @click="$refs.dialog.save(ticket.startDate)"
-                    >
-                      OK
-                    </v-btn>
-                  </v-date-picker>
-                </v-dialog>
-              </v-col> -->
-          <!-- End date -->
-          <!-- <v-col cols="12" sm="6" md="4">
-                <v-dialog
-                  ref="dialog"
-                  v-model="modal"
-                  :return-value.sync="ticket.endDate"
-                  persistent
-                  width="290px"
-                >
-                  <template v-slot:activator="{ on, attrs }">
-                    <v-text-field
-                      v-model="ticket.endDate"
-                      label="End date"
-                      prepend-icon="mdi-calendar"
-                      readonly
-                      v-bind="attrs"
-                      v-on="on"
-                    ></v-text-field>
-                  </template>
-                  <v-date-picker
-                    v-model="ticket.endDate"
-                    :allowed-dates="allowedDates"
-                    scrollable
-                  >
-                    <v-spacer></v-spacer>
-                    <v-btn text color="primary" @click="modal = false">
-                      Cancel
-                    </v-btn>
-                    <v-btn
-                      text
-                      color="primary"
-                      @click="$refs.dialog.save(ticket.endDate)"
-                    >
-                      OK
-                    </v-btn>
-                  </v-date-picker>
-                </v-dialog>
-              </v-col> -->
         </v-row>
         <v-row class="form-group ml-1">
           <v-col>
@@ -103,7 +27,7 @@
                 type="number"
                 solo
                 dense
-                :rules="[(val) => 1 <= +val <= 99 || 'Must be a number']"
+                :rules="[(val) => 1 <= +val <= 99 || 'Not a valid number']"
               />
             </v-row>
           </v-col>
@@ -161,6 +85,7 @@ export default {
       this.ticketSaved = true;
       this.$emit("saved");
       this.resetTicket();
+      this.$router.push('/tickets')
     },
     resetTicket() {
       this.ticket = {
@@ -172,6 +97,7 @@ export default {
     onCancel() {
       this.$emit("canceled");
       this.resetTicket();
+      this.$router.push('/tickets')
     },
   },
 };

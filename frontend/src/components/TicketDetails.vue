@@ -38,6 +38,7 @@ export default {
   },
   props: {
     ticket: Object,
+    dateKey: String,
     isDataLoading: Boolean,
   },
   data() {
@@ -45,22 +46,36 @@ export default {
       ticketDetailHeaders: [
         { text: "Drawing Date", value: "drawingDate" },
         { text: "Matches", value: "matches" },
-        { text: "Prize", value: "fprize" },
+        { text: "Prize", value: "prize" },
       ],
       error: null,
     };
   },
   computed: {
     ticketDetailItems() {
-      return this.ticket.results.map((result, index) => {
-        result.id = index;
-        result.fprize = result.prize !== null ? "$" + result.prize : "--";
-        result.matches = result.matches ? result.matches.length : "--";
-        return result;
+      var ticket;
+      if (!this.ticket && this.dateKey) {
+        ticket = this.$store.getters.results.find(
+          (_) => this.dateKey == _.dates.replace(" – ", "-")
+        );
+      }
+      return ticket.results.map((result, index) => {
+        return {
+          id: index,
+          prize: result.prize !== null ? "$" + result.prize : "--",
+          matches: result.matches ? result.matches.length : "--",
+        };
       });
     },
   },
   methods: {
+    getTicketResult(dateKey) {
+      if (!this.ticket && dateKey) {
+        this.ticket = this.$store.getters.results.find(
+          (ticket) => dateKey == `${ticket.dates.replace(" - ", "#")}`
+        );
+      }
+    },
     isoStringToLocaleString(isoDateString) {
       return utils.isoStringToLocaleString(isoDateString);
     },
