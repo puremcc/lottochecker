@@ -25,7 +25,7 @@ import boto3
 
 def main(source_table: str, dest_table: str = None, dest_file: str = None):
     print('Getting records from source table...')
-    tickets = get_items(source_table)
+    tickets = get_items(source_table).map(add_date_columns) 
     if dest_table:
         print(
             f'Loading {len(tickets)} records into dest table {dest_table}...')
@@ -57,6 +57,10 @@ def load_items(items: List[dict], table: str):
             batch.put_item(item)
 
 
+def add_date_columns(item):
+    item['StartDate'], item['EndDate'] = item['DateRage'].split('#')[:2]
+    return item
+
 class DynamoItemEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, decimal.Decimal):
@@ -74,6 +78,6 @@ if __name__ == '__main__':
     parser.add_argument(
         '--dest-table', help='Name of destination table in DynamoDB.')
     parser.add_argument(
-        '--dest-file', help='2) a valid file path string to save the items to, e.g. \'items.json\'.')
+        '--dest-file', help='A valid file path string to save the items to, e.g. \'items.json\'.')
     args = parser.parse_args()
     main(args.source_table, args.dest_table, args.dest_file)

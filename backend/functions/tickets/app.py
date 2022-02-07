@@ -18,33 +18,24 @@ def lambda_handler(event, context):
         resp = table.query(KeyConditionExpression=Key('UserId').eq(USERNAME))
         if not 200 <= resp['ResponseMetadata']['HTTPStatusCode'] < 300:
             raise Exception(str(resp))
-        response['body'] = [
-            {
-                'startDate': item['DateRange'][:10],
-                'endDate': item['DateRange'][11:21],
-                'picks': [
-                    # Cast each number to an int.
-                    {'numbers': [int(n) for n in p['numbers']]}
-                    for p in item['Picks']
-                ]
-            } for item in resp['Items']
-        ]
+        response['body'] = list(map(mapItemToTicket, resp['Items']))
+
+    if 'GET /tickets/active' == event['routeKey']:
+        resp = table.query(KeyConditionExpression=Key(
+            'UserId').eq(USERNAME), FilterExpression=Attr)
+        if not 200 <= resp['ResponseMetadata']['HTTPStatusCode'] < 300:
+            raise Exception(str(resp))
+        response['body'] = list(map(mapItemToTicket, resp['Items']))
+
     elif 'PUT /tickets' == event['routeKey']:
         req_body = json.loads(event['body'])
-        ticket = {
-            'UserId': USERNAME,
-            'DateRange': '{}#{}#{}'.format(req_body['startDate'], req_body['endDate'], time.time()),
-            'Picks': [
-                {'numbers': set([int(n) for n in p['numbers']])}
-                for p in req_body['picks']
-            ]
-        }
+        item = mapTicketToItem(req_body)
         resp = table.put_item(
-            Item=ticket,
+            Item=item,
             ConditionExpression='UserId <> :u AND DateRange <> :d',
             ExpressionAttributeValues={
                 ':u': {'S': USERNAME},
-                ':d': {'S': ticket['DateRange']}
+                ':d': {'S': item['DateRange']}
             })
         print(resp)
         if 200 <= resp['ResponseMetadata']['HTTPStatusCode'] < 300:
@@ -59,3 +50,31 @@ def lambda_handler(event, context):
     if 'body' in response:
         response['body'] = json.dumps(response['body'])
     return response
+
+
+def mapItemToTicket(item: dict):
+    return {
+        'startDate': item['DateRange'][:10],
+        'endDate': item['DateRange'][11:21],
+        'picks': [
+            # Cast each number to an int.
+            {'numbers': [int(n) for n in p['numbers']]}
+            for p in item['Picks']
+        ]
+    }
+
+def mapTicketToItem(ticket: dict):
+    return {
+        'UserId': USERNAME,
+        'DateRange': '{}#{}'.format(ticket['startDate'], ticket['endDate']),
+        'StartDate': ticket['startDate'],
+        'EndDate': ticket['endDate']
+        'Picks': [
+            {'numbers': [int(n) for n in p['numbers']]}
+            for p in ticket['picks']
+        ]
+    }
+
+class Controller():
+
+    def handle(request: dict):
