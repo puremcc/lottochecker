@@ -60,13 +60,11 @@ jobs:
 
       - name: Deploy to feature environment
         uses: ./.github/actions/deploy
-        env:
-          WEBSITE_DOMAIN: ${{ env.STACK_NAME_SUFFIX }}.${{ secrets.WEBSITE_DOMAIN }}
         with:
           stack-name-suffix: ${{ env.STACK_NAME_SUFFIX }}
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
           admin-email: ${{ secrets.ADMIN_EMAIL }}
-          website-domain: ${{ env.WEBSITE_DOMAIN }}
+          website-domain: ${{ env.STACK_NAME_SUFFIX }}.${{ secrets.WEBSITE_DOMAIN }}
           acm-certificate-arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
 
   delete-feature:

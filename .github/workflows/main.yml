@@ -41,10 +41,10 @@ jobs:
       - name: Deploy to Dev
         uses: ./.github/actions/deploy
         with:
-          stack-name-suffix: dev
+          stack-name-suffix: ${{ env.STACK_NAME_SUFFIX }}
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
           admin-email: ${{ secrets.ADMIN_EMAIL }}
-          website-url: ${{ secrets.WEBSITE_URL }}
+          website-domain: ${{ env.STACK_NAME_SUFFIX }}.${{ secrets.WEBSITE_DOMAIN }}
           acm-certificate-arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
 
   deploy-prod:
@@ -64,8 +64,8 @@ jobs:
       - name: Deploy to Prod
         uses: ./.github/actions/deploy
         with:
-          stack-name-suffix: prod
+          stack-name-suffix: ${{ env.STACK_NAME_SUFFIX }}
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
           admin-email: ${{ secrets.ADMIN_EMAIL }}
-          website-url: ${{ secrets.WEBSITE_URL }}
+          website-domain: ${{ env.STACK_NAME_SUFFIX }}.${{ secrets.WEBSITE_DOMAIN }}
           acm-certificate-arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
