@@ -37,15 +37,15 @@ jobs:
 
       - name: Set STACK_NAME_SUFFIX
         run: |
-          if [[ $GITHUB_REF == refs/heads/feature/* ]]; then
+          if [[ $GITHUB_REF == "refs/heads/feature/*" ]]; then
             BRANCH_TYPE=feature
-          elif [[ $GITHUB_REF == refs/heads/bugfix/* ]]; then
+          elif [[ $GITHUB_REF == "refs/heads/bugfix/*" ]]; then
             BRANCH_TYPE=bugfix
           fi
           HASH=$(cksum <<< $GITHUB_REF_NAME | cut -f 1 -d ' ')
           STACK_NAME_SUFFIX=${BRANCH_TYPE}${HASH}
           if [ -z $STACK_NAME_SUFFIX ]; then 
-            echo "STACK_NAME_SUFFIX did not get set."
+            echo "ERROR: STACK_NAME_SUFFIX did not get set."
             exit 1; 
           fi
           echo "STACK_NAME_SUFFIX=$STACK_NAME_SUFFIX" >> $GITHUB_ENV
@@ -64,8 +64,6 @@ jobs:
           stack-name-suffix: ${{ env.STACK_NAME_SUFFIX }}
           artifact-bucket: ${{ secrets.ARTIFACT_BUCKET }}
           admin-email: ${{ secrets.ADMIN_EMAIL }}
-          website-domain: ${{ env.STACK_NAME_SUFFIX }}.${{ secrets.WEBSITE_DOMAIN }}
-          acm-certificate-arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
 
   delete-feature:
     # if: startsWith(github.event.ref, 'feature') && github.event_name == 'delete'

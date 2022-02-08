@@ -11,13 +11,13 @@ inputs:
     description: For admin account initial password email.
     required: true
   website-domain:
-    description: 'Optional custom domain for website. If empty then CloudFront URL will be used.'
+    description: "Optional custom domain for website. If empty then CloudFront URL will be used."
     required: false
-    default: ''
+    default: ""
   acm-certificate-arn:
-    description: 'Conditional. If custom URL provided, then must provide ACM certifacte to use.'
+    description: "Conditional. If custom URL provided, then must provide ACM certifacte to use."
     required: false
-    default: ''
+    default: ""
 
 runs:
   using: "composite"
@@ -30,13 +30,18 @@ runs:
     - name: Deploy frontend infra
       shell: bash
       run: |
+        PARAM_OVERRIDES=""  # No alias domain provided.
+        if [[ -n "${{ inputs.website-domain }}" ]]; then
+          # Alias domain was provided.
+          PARAM_OVERRIDES="AlternateDomain=${{ inputs.website-domain }} AcmCertificateArn='${{ inputs.acm-certificate-arn }}'"
+        fi
         sam deploy --stack-name lottochecker-${{ inputs.stack-name-suffix }}-frontend \
             --template frontend-template.packaged.yaml \
             --s3-bucket ${{ inputs.artifact-bucket }} \
             --no-fail-on-empty-changeset \
             --no-confirm-changeset \
             --capabilities CAPABILITY_IAM \
-            --parameter-overrides "AlternateDomain=${{ inputs.website-domain }} AcmCertificateArn='${{ inputs.acm-certificate-arn }}'"
+            --parameter-overrides "$PARAM_OVERRIDES"
 
     - name: Save frontend stack outputs
       uses: puremcc/save-stack-outputs@v1
