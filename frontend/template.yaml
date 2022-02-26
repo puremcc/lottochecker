@@ -19,7 +19,10 @@ Conditions:
   # 2. a corresponding AcmCertificateArn must also be provided.
   HasAlternateDomain:
     !Not [
-      !Or [!Equals [!Ref AlternateDomain, ""], !Equals [!Ref AcmCertificateArn, ""]],
+      !Or [
+        !Equals [!Ref AlternateDomain, ""],
+        !Equals [!Ref AcmCertificateArn, ""],
+      ],
     ]
 
 Resources:
@@ -40,6 +43,15 @@ Resources:
           Principal:
             AWS: !Sub arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${CloudFrontOAI}
           Resource: !Sub arn:aws:s3:::${FrontendHostingBucket}/*
+
+  DnsRecord:
+    Condition: HasAlternateDomain
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Ref AlternateDomain
+      Type: CNAME
+      HostedZoneName: lottochecker.puremcc.com.
+      ResourceRecords: !GetAtt CloudFrontDistribution.DomainName
 
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
